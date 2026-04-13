@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Shield, Trophy, Users, LayoutDashboard, LogOut, Menu, X, User, 
   Zap, Settings, Layout, ShieldAlert, UserCog, Award, Bell, Home, Search,
-  Clock
+  Clock, Disc as Discord
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
@@ -25,6 +25,33 @@ export default function Navbar() {
   const [hasPendingClaim, setHasPendingClaim] = useState(false);
   const [isClaimed, setIsClaimed] = useState(false);
   const supabase = getSupabase();
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: { 
+        redirectTo: `${window.location.origin}/auth/callback`, 
+        scopes: 'identify email guilds',
+        skipBrowserRedirect: true,
+      },
+    });
+    
+    if (data?.url) {
+      window.open(data.url, 'oauth_popup', 'width=600,height=700');
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -142,7 +169,7 @@ export default function Navbar() {
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [supabase, pathname]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -154,6 +181,7 @@ export default function Navbar() {
   const isRef = permissions?.can_score_matches || userRoles.includes('Referee') || userRoles.includes('Temp Referee') || isAdmin;
 
   const navLinks = [
+    { name: 'Home', href: '/', icon: Home, show: true },
     { name: 'Rankings', href: '/rankings', icon: Trophy, show: true },
     { name: 'Tournaments', href: '/tournaments', icon: Layout, show: true },
     { name: 'Meta', href: '/meta', icon: Search, show: true },
@@ -175,8 +203,7 @@ export default function Navbar() {
   const mobileMainLinks = visibleLinks.slice(0, 4);
   const mobileMoreLinks = visibleLinks.slice(4);
 
-  if (!player && !userMetadata) return null;
-
+  const isLoggedIn = !!userMetadata;
   const displayName = player?.display_name || userMetadata?.full_name || userMetadata?.custom_claims?.global_name || 'User';
   const username = player?.username || userMetadata?.email?.split('@')[0] || 'user';
   const avatarUrl = player?.avatar_url || userMetadata?.avatar_url;
@@ -224,81 +251,90 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-4">
-            <NotificationBell />
-            
-            <div className="relative">
-              <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-3 p-1 rounded-full hover:bg-white/5 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                      <User size={14} className="text-primary" />
+            {isLoggedIn ? (
+              <>
+                <NotificationBell />
+                
+                <div className="relative">
+                  <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
+                    className="flex items-center gap-3 p-1 rounded-full hover:bg-white/5 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full overflow-hidden border border-white/10">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                          <User size={14} className="text-primary" />
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </button>
+                  </button>
 
-              <AnimatePresence>
-                {isProfileOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-56 bg-[#0f0f1a] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
-                    >
-                      <div className="p-4 border-b border-white/5">
-                        <p className="text-xs font-bold text-white truncate">{displayName}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">@{username}</p>
-                      </div>
-                      <div className="p-2">
-                        <Link
-                          href={`/players/${username}`}
-                          onClick={() => setIsProfileOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+                  <AnimatePresence>
+                    {isProfileOpen && (
+                      <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute right-0 mt-2 w-56 bg-[#0f0f1a] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden"
                         >
-                          <User size={14} /> My Profile
-                        </Link>
-                        
-                        {desktopExtraLinks.length > 0 && (
-                          <div className="py-1 border-y border-white/5 my-1">
-                            {desktopExtraLinks.map((link) => (
-                              <Link
-                                key={link.href}
-                                href={link.href}
-                                onClick={() => setIsProfileOpen(false)}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
-                              >
-                                <link.icon size={14} /> {link.name}
-                              </Link>
-                            ))}
+                          <div className="p-4 border-b border-white/5">
+                            <p className="text-xs font-bold text-white truncate">{displayName}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">@{username}</p>
                           </div>
-                        )}
+                          <div className="p-2">
+                            <Link
+                              href={`/players/${username}`}
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+                            >
+                              <User size={14} /> My Profile
+                            </Link>
+                            
+                            {desktopExtraLinks.length > 0 && (
+                              <div className="py-1 border-y border-white/5 my-1">
+                                {desktopExtraLinks.map((link) => (
+                                  <Link
+                                    key={link.href}
+                                    href={link.href}
+                                    onClick={() => setIsProfileOpen(false)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+                                  >
+                                    <link.icon size={14} /> {link.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
 
-                        <Link
-                          href={`/players/${username}?tab=settings`}
-                          onClick={() => setIsProfileOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
-                        >
-                          <Settings size={14} /> Settings
-                        </Link>
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors"
-                        >
-                          <LogOut size={14} /> Logout
-                        </button>
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+                            <Link
+                              href={`/players/${username}?tab=settings`}
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+                            >
+                              <Settings size={14} /> Settings
+                            </Link>
+                            <button
+                              onClick={handleLogout}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+                            >
+                              <LogOut size={14} /> Logout
+                            </button>
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </>
+            ) : (
+              <button onClick={handleLogin} className="flex items-center gap-2 px-4 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold rounded-lg transition-all">
+                <Discord size={14} />
+                <span>Login</span>
+              </button>
+            )}
           </div>
         </div>
       </nav>
@@ -360,21 +396,34 @@ export default function Navbar() {
                       <span className="text-[8px] font-bold uppercase tracking-widest text-center">{link.name}</span>
                     </Link>
                   ))}
-                  <Link
-                    href={`/players/${username}`}
-                    onClick={() => setIsMoreOpen(false)}
-                    className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    <User size={20} className="text-primary" />
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-center">Profile</span>
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 transition-colors"
-                  >
-                    <LogOut size={20} className="text-red-500" />
-                    <span className="text-[8px] font-bold uppercase tracking-widest text-center text-red-500">Logout</span>
-                  </button>
+                  
+                  {isLoggedIn ? (
+                    <>
+                      <Link
+                        href={`/players/${username}`}
+                        onClick={() => setIsMoreOpen(false)}
+                        className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-white/5 hover:bg-white/10 transition-colors"
+                      >
+                        <User size={20} className="text-primary" />
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-center">Profile</span>
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                      >
+                        <LogOut size={20} className="text-red-500" />
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-center text-red-500">Logout</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={handleLogin}
+                      className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#5865F2]/10 hover:bg-[#5865F2]/20 transition-colors"
+                    >
+                      <Discord size={20} className="text-[#5865F2]" />
+                      <span className="text-[8px] font-bold uppercase tracking-widest text-center text-[#5865F2]">Login</span>
+                    </button>
+                  )}
                 </div>
               </motion.div>
             </>

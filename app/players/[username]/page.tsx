@@ -24,6 +24,8 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      const decodedUsername = decodeURIComponent(username);
+      
       const { data: playerData, error } = await supabase
         .from('players')
         .select(`
@@ -35,7 +37,7 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
             tournaments (id, name, date, is_ranking_tournament)
           )
         `)
-        .ilike('username', username)
+        .or(`username.ilike.${decodedUsername},display_name.ilike.${decodedUsername}`)
         .single();
 
       if (playerData) {

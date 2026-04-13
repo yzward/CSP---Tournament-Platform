@@ -15,66 +15,106 @@ export default function LoginPage() {
   const supabase = getSupabase();
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (user) {
-        // Check referees table first
-        const { data: refData } = await supabase.from('referees').select('role').eq('auth_user_id', user.id).single();
-        if (refData && refData.role) {
-          const role = refData.role.toLowerCase();
-          if (role === 'admin') {
-            window.location.href = '/admin';
-            return;
-          } else if (role === 'ops') {
-            window.location.href = '/operations';
-            return;
-          } else if (role === 'referee') {
-            window.location.href = '/referee';
-            return;
-          }
-        }
-
-        const { data: player } = await supabase.from('players').select('id, status').eq('discord_id', user.id).single();
-        if (player) {
-          if (player.status === 'pending') {
-            window.location.href = '/pending';
-            return;
-          }
-          if (player.status === 'rejected') {
-            window.location.href = '/rejected';
-            return;
-          }
-          const { data: userRoles } = await supabase.from('user_roles').select('roles(name)').eq('player_id', player.id);
-          const roleNames = userRoles?.map((r: any) => r.roles?.name || r.roles?.[0]?.name) || [];
-          if (roleNames.includes('Admin')) {
-            window.location.href = '/admin';
-          } else if (roleNames.includes('Ops')) {
-            window.location.href = '/operations';
-          } else if (roleNames.includes('Referee')) {
-            window.location.href = '/referee';
-          } else {
-            window.location.href = '/rankings';
-          }
+    const handleMessage = (event: MessageEvent) => {
+      // Validate origin is from AI Studio preview or localhost
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+        return;
+      }
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        checkUser();
+      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+        setIsLoading(false);
+        if (event.data.error === 'not_member') {
+          toast.error('You must be a member of the required Discord server to log in.');
         } else {
-          window.location.href = '/rankings';
+          toast.error('Discord login failed.');
         }
       }
     };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [supabase]);
+
+  const checkUser = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    const user = data?.user;
+    if (user) {
+      // Check referees table first
+      const { data: refData } = await supabase.from('referees').select('role').eq('auth_user_id', user.id).single();
+      if (refData && refData.role) {
+        const role = refData.role.toLowerCase();
+        if (role === 'admin') {
+          window.location.href = '/admin';
+          return;
+        } else if (role === 'ops') {
+          window.location.href = '/operations';
+          return;
+        } else if (role === 'referee') {
+          window.location.href = '/referee';
+          return;
+        }
+      }
+
+      const { data: player } = await supabase.from('players').select('id').eq('discord_id', user.id).single();
+      if (player) {
+        const { data: userRoles } = await supabase.from('user_roles').select('roles(name)').eq('player_id', player.id);
+        const roleNames = userRoles?.map((r: any) => r.roles?.name || r.roles?.[0]?.name) || [];
+        if (roleNames.includes('Admin')) {
+          window.location.href = '/admin';
+        } else if (roleNames.includes('Ops')) {
+          window.location.href = '/operations';
+        } else if (roleNames.includes('Referee')) {
+          window.location.href = '/referee';
+        } else {
+          window.location.href = '/rankings';
+        }
+      } else {
+        // Check for pending claim
+        const { data: claim } = await supabase
+          .from('account_claims')
+          .select('id')
+          .eq('auth_user_id', user.id)
+          .eq('status', 'pending')
+          .single();
+
+        if (!claim) {
+          window.location.href = '/claim';
+        } else {
+          window.location.href = '/claim';
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
     checkUser();
   }, [supabase]);
 
   const handleDiscordLogin = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'discord',
         options: {
           scopes: 'identify email guilds',
           redirectTo: `${window.location.origin}/auth/callback`,
+          skipBrowserRedirect: true,
         },
       });
       if (error) throw error;
+      
+      if (data?.url) {
+        const authWindow = window.open(
+          data.url,
+          'oauth_popup',
+          'width=600,height=700'
+        );
+        if (!authWindow) {
+          toast.error('Please allow popups for this site to connect your account.');
+          setIsLoading(false);
+        }
+      }
     } catch (error) {
       console.error('Error logging in with Discord:', error);
       setIsLoading(false);

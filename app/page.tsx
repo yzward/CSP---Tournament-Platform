@@ -156,8 +156,8 @@ function LandingContent() {
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
   const supabase = getSupabase();
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-  const [showError, setShowError] = useState(!!error);
+  const [errorParam, setErrorParam] = useState(searchParams.get('error'));
+  const [showError, setShowError] = useState(!!errorParam);
   const discordInviteUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || 'https://discord.gg/spiritgaming';
 
   useEffect(() => {
@@ -175,31 +175,58 @@ function LandingContent() {
   }, [supabase]);
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      const user = data?.user;
-      if (!user) return;
-      const { data: player } = await supabase.from('players').select('id, status').eq('discord_id', user.id).single();
-      if (player) {
-        // players table has no status column — if the record exists the player is approved
-        const { data: userRoles } = await supabase.from('user_roles').select('roles(name)').eq('player_id', player.id);
-        const roles = userRoles?.map((r: any) => r.roles?.name) || [];
-        if (roles.includes('Admin')) window.location.href = '/admin';
-        else if (roles.includes('Ops')) window.location.href = '/operations';
-        else if (roles.includes('Referee')) window.location.href = '/referee';
-        else window.location.href = '/rankings';
-      } else {
-        window.location.href = '/rankings';
+    const handleMessage = (event: MessageEvent) => {
+      const origin = event.origin;
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
+      
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        checkUser();
+      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+        if (event.data.error === 'not_member') {
+          setErrorParam('not_member');
+          setShowError(true);
+        }
       }
     };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [supabase]);
+
+  const checkUser = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    const user = data?.user;
+    if (!user) return;
+    const { data: player } = await supabase.from('players').select('id').eq('discord_id', user.id).single();
+    if (player) {
+      // players table has no status column — if the record exists the player is approved
+      const { data: userRoles } = await supabase.from('user_roles').select('roles(name)').eq('player_id', player.id);
+      const roles = userRoles?.map((r: any) => r.roles?.name) || [];
+      if (roles.includes('Admin')) window.location.href = '/admin';
+      else if (roles.includes('Ops')) window.location.href = '/operations';
+      else if (roles.includes('Referee')) window.location.href = '/referee';
+      else window.location.href = '/rankings';
+    } else {
+      window.location.href = '/claim';
+    }
+  };
+
+  useEffect(() => {
     checkUser();
   }, [supabase]);
 
   const handleLogin = async () => {
-    await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
-      options: { redirectTo: `${window.location.origin}/auth/callback`, scopes: 'identify email guilds' },
+      options: { 
+        redirectTo: `${window.location.origin}/auth/callback`, 
+        scopes: 'identify email guilds',
+        skipBrowserRedirect: true,
+      },
     });
+    
+    if (data?.url) {
+      window.open(data.url, 'oauth_popup', 'width=600,height=700');
+    }
   };
 
   return (
@@ -236,7 +263,7 @@ function LandingContent() {
       </header>
 
       {/* ── ERROR BANNER ─────────────────────────────────────────── */}
-      {showError && error === 'not_member' && (
+      {showError && errorParam === 'not_member' && (
         <div className="fixed top-14 left-0 right-0 z-40 bg-red-500/10 border-b border-red-500/20 px-6 py-3 flex items-center gap-4">
           <Shield size={14} className="text-red-400 flex-shrink-0" />
           <p className="text-xs text-red-300/80 flex-1">

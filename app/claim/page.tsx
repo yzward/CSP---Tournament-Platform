@@ -118,7 +118,6 @@ export default function ClaimPage() {
           username: username,
           display_name: displayName,
           avatar_url: user.user_metadata.avatar_url,
-          status: 'pending',
           ranking_points: 0
         });
       

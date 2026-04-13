@@ -92,6 +92,22 @@ export default function OperationsDashboard() {
     }
   };
 
+  const handleDeleteTournament = async (tournamentId: string) => {
+    if (!confirm('Are you sure you want to delete this tournament? This action cannot be undone.')) return;
+    
+    const { error } = await supabase.from('tournaments').delete().eq('id', tournamentId);
+    if (error) {
+      toast.error('Failed to delete tournament');
+      console.error(error);
+    } else {
+      toast.success('Tournament deleted');
+      setTournaments(tournaments.filter(t => t.id !== tournamentId));
+      if (selectedTournament === tournamentId) {
+        setSelectedTournament(tournaments.length > 1 ? tournaments.find(t => t.id !== tournamentId)?.id || '' : '');
+      }
+    }
+  };
+
   const handleAssignRef = async (matchId: string, refId: string) => {
     // Empty string = "Unassigned" — pass null to avoid FK constraint violation
     const refValue = refId || null;

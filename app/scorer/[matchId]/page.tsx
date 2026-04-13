@@ -312,6 +312,23 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
       });
     }
 
+    // Check if we need to advance the round (for Swiss tournaments)
+    if (tournament?.stage1_format === 'swiss' && match.stage?.startsWith('Round ')) {
+      try {
+        const roundNum = parseInt(match.stage.replace('Round ', ''), 10);
+        if (!isNaN(roundNum)) {
+          // roundId is 0-indexed in the API
+          fetch(`/api/tournaments/${tournament.id}/advance-round`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roundId: roundNum - 1 })
+          }).catch(err => console.error('Failed to advance round:', err));
+        }
+      } catch (err) {
+        console.error('Error triggering round advance:', err);
+      }
+    }
+
     toast.success('Match submitted!');
     router.push('/referee');
   };

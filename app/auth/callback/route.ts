@@ -31,7 +31,16 @@ export async function GET(request: Request) {
             if (!isInGuild) {
               // Not in the required server - Sign out and redirect with error
               await supabase.auth.signOut()
-              return NextResponse.redirect(`${origin}/?error=not_member`)
+              return new NextResponse(`
+                <html><body><script>
+                  if (window.opener) {
+                    window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: 'not_member' }, '*');
+                    window.close();
+                  } else {
+                    window.location.href = '/?error=not_member';
+                  }
+                </script></body></html>
+              `, { headers: { 'Content-Type': 'text/html' } })
             }
           } else {
             console.error('Failed to fetch Discord guilds:', await guildsResponse.text())
@@ -47,65 +56,60 @@ export async function GET(request: Request) {
           .eq('discord_id', user.id)
           .single()
 
-        if (!player) {
-          // Check for pending claim
-          const { data: claim } = await supabase
-            .from('account_claims')
-            .select('id')
-            .eq('auth_user_id', user.id)
-            .eq('status', 'pending')
-            .single()
-
-          if (!claim) {
-            // No player and no pending claim - redirect to claim page
-            return NextResponse.redirect(`${origin}/claim`)
-          } else {
-            // Pending claim exists - redirect to claim page (which shows review status)
-            return NextResponse.redirect(`${origin}/claim`)
-          }
-        }
-
-        // Update existing player's avatar and discord token
-        const updateData: any = {
-          discord_access_token: providerToken
-        };
-        
-        if (user.user_metadata.avatar_url && player.avatar_url !== user.user_metadata.avatar_url) {
-          updateData.avatar_url = user.user_metadata.avatar_url;
-        }
-
-        await supabase
-          .from('players')
-          .update(updateData)
-          .eq('id', player.id);
-
-        // Handle Role-Based Redirect
-        let redirectPath = '/'
-        
         if (player) {
-          {
-            const { data: userRoles } = await supabase
-              .from('user_roles')
-              .select('roles(name)')
-              .eq('player_id', player.id)
-
-            const roleNames = userRoles?.map((r: any) => r.roles?.name || r.roles?.[0]?.name) || []
-
-            if (roleNames.includes('Admin')) {
-              redirectPath = '/admin'
-            } else if (roleNames.includes('Ops')) {
-              redirectPath = '/operations'
-            } else if (roleNames.includes('Referee') || roleNames.includes('Temp Referee')) {
-              redirectPath = '/referee'
-            }
+          // Update existing player's avatar and discord token
+          const updateData: any = {
+            discord_access_token: providerToken
+          };
+          
+          if (user.user_metadata.avatar_url && player.avatar_url !== user.user_metadata.avatar_url) {
+            updateData.avatar_url = user.user_metadata.avatar_url;
           }
+
+          await supabase
+            .from('players')
+            .update(updateData)
+            .eq('id', player.id);
         }
 
-        return NextResponse.redirect(`${origin}${redirectPath}`)
+        // Return HTML to postMessage and close popup
+        return new NextResponse(`
+          <html>
+            <body>
+              <script>
+                if (window.opener) {
+                  window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
+                  window.close();
+                } else {
+                  window.location.href = '/';
+                }
+              </script>
+              <p>Authentication successful. This window should close automatically.</p>
+            </body>
+          </html>
+        `, {
+          headers: { 'Content-Type': 'text/html' }
+        });
       }
     }
   }
 
   // Fallback redirect
-  return NextResponse.redirect(`${origin}/login`)
+  return new NextResponse(`
+    <html>
+      <body>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR' }, '*');
+            window.close();
+          } else {
+            window.location.href = '/login';
+          }
+        </script>
+        <p>Authentication failed. This window should close automatically.</p>
+      </body>
+    </html>
+  `, {
+    headers: { 'Content-Type': 'text/html' }
+  });
 }

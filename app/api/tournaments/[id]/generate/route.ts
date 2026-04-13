@@ -118,9 +118,14 @@ export async function POST(
     }
 
     // Create match rows for every bracket match where both players are known (not a bye)
-    const bracketMatches = (exportedData.match as any[]).filter(
+    let bracketMatches = (exportedData.match as any[]).filter(
       (bm: any) => bm.opponent1?.id != null && bm.opponent2?.id != null
     );
+
+    // For Swiss, only generate Round 1 upfront
+    if (tournament.stage1_format === 'swiss') {
+      bracketMatches = bracketMatches.filter((bm: any) => bm.round_id === 0);
+    }
 
     for (const bm of bracketMatches) {
       const p1Id = participantMap[bm.opponent1.id];

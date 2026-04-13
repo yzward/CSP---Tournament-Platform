@@ -22,8 +22,8 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased bg-background text-foreground">
-        {user && <Navbar />}
-        <main className={`min-h-screen ${user ? 'pt-16' : ''}`}>
+        <Navbar />
+        <main className="min-h-screen pt-16">
           <PageTransition>
             {children}
           </PageTransition>
