@@ -139,87 +139,6 @@ export default function OperationsDashboard() {
 
   const [activeMainTab, setActiveMainTab] = useState<'assignments' | 'history'>('assignments');
 
-  // Auto-rank: derive placements from match results
-  // Primary: wins. Tiebreaker: point differential (Swiss standard).
-  const handleAutoRank = async (tournamentId: string, tournamentName: string) => {
-    if (!window.confirm(`Auto-rank all entrants for "${tournamentName}" using wins + point differential?\n\nThis will overwrite any manually set placements.`)) return;
-    try {
-      // Fetch match_players for this tournament's submitted matches
-      const { data: matchIds } = await (supabase as any)
-        .from('matches')
-        .select('id')
-        .eq('tournament_id', tournamentId)
-        .eq('status', 'submitted');
-
-      const ids = (matchIds || []).map((m: any) => m.id);
-
-      const { data: mpData, error: matchErr } = ids.length
-        ? await (supabase as any)
-            .from('match_players')
-            .select('match_id, player_id, sets_won, total_points, winner')
-            .in('match_id', ids)
-        : { data: [], error: null };
-      if (matchErr) throw matchErr;
-
-      // Fetch all entrants
-      const { data: entrantsData, error: entErr } = await supabase
-        .from('tournament_entrants')
-        .select('player_id')
-        .eq('tournament_id', tournamentId);
-      if (entErr) throw entErr;
-      if (!entrantsData?.length) { toast.error('No entrants found'); return; }
-
-      // Build stats map: wins + point differential per player
-      const statsMap: Record<string, { wins: number; pointDiff: number }> = {};
-      for (const e of entrantsData) {
-        statsMap[e.player_id] = { wins: 0, pointDiff: 0 };
-      }
-
-      // Group match_players by match to calculate differential
-      const matchGroups: Record<string, any[]> = {};
-      for (const mp of mpData || []) {
-        if (!matchGroups[mp.match_id]) matchGroups[mp.match_id] = [];
-        matchGroups[mp.match_id].push(mp);
-      }
-
-      for (const [, players] of Object.entries(matchGroups)) {
-        const [a, b] = players as any[];
-        if (!a || !b) continue;
-        for (const p of [a, b]) {
-          if (!statsMap[p.player_id]) continue;
-          if (p.winner) statsMap[p.player_id].wins++;
-          const opp = p === a ? b : a;
-          statsMap[p.player_id].pointDiff += (p.total_points ?? 0) - (opp.total_points ?? 0);
-        }
-      }
-
-      // Sort by wins desc, then point differential desc
-      const sorted = entrantsData
-        .slice()
-        .sort((a: any, b: any) => {
-          const sa = statsMap[a.player_id];
-          const sb = statsMap[b.player_id];
-          if (sb.wins !== sa.wins) return sb.wins - sa.wins;
-          return sb.pointDiff - sa.pointDiff;
-        });
-
-      // Write placements back
-      await Promise.all(
-        sorted.map((e: any, i: number) =>
-          supabase
-            .from('tournament_entrants')
-            .update({ placement: i + 1 })
-            .eq('tournament_id', tournamentId)
-            .eq('player_id', e.player_id)
-        )
-      );
-
-      toast.success(`Placements set for ${sorted.length} players`);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to auto-rank');
-    }
-  };
-
   const handleReopenMatch = async (matchId: string) => {
     if (!window.confirm('Are you sure you want to reopen this match? This will reset its status to in_progress.')) {
       return;
@@ -315,30 +234,21 @@ export default function OperationsDashboard() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    {t.evaroon_id ? (
-                      <a
-                        href={t.evaroon_id.startsWith('http') ? t.evaroon_id : `https://start.gg/${t.evaroon_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                      >
-                        <ExternalLink size={10} /> Start.gg
-                      </a>
-                    ) : (
-                      <Link
-                        href={`/operations/tournaments/${t.id}/bracket`}
-                        className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all text-center"
-                      >
-                        Manage Bracket
-                      </Link>
-                    )}
+                    <a
+                      href={t.evaroon_id?.startsWith('http') ? t.evaroon_id : `https://start.gg/${t.evaroon_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                    >
+                      <ExternalLink size={10} /> Start.gg
+                    </a>
                     {t.status === 'active' && (
                       <button
-                        onClick={() => t.evaroon_id ? toast.info('Syncing from start.gg coming soon!') : handleAutoRank(t.id, t.name)}
+                        onClick={() => toast.info('Syncing from start.gg coming soon!')}
                         className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                        title={t.evaroon_id ? "Sync results from start.gg" : "Rank players by wins, then point differential (Swiss tiebreaker)"}
+                        title="Sync results from start.gg"
                       >
-                        <ListOrdered size={10} /> {t.evaroon_id ? 'Sync Data' : 'Auto-Rank'}
+                        <ListOrdered size={10} /> Sync Data
                       </button>
                     )}
                   </div>

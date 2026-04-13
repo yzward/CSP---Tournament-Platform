@@ -78,6 +78,7 @@ export interface Tournament {
   description?: string;
   discord_webhook_url?: string;
   organiser_id?: string;
+  /** Legacy column name, now stores start.gg slug or url */
   evaroon_id?: string;
   bracket_data?: any;
   created_at: string;
@@ -100,6 +101,7 @@ export interface Match {
   ref_id?: string;
   court_id?: string;
   stage?: string;
+  /** Legacy column name, now stores start.gg match id */
   evaroon_match_id?: string;
   played_at?: string;
   notes?: string;

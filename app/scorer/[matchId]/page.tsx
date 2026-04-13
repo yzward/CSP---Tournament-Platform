@@ -277,27 +277,6 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
       return;
     }
 
-    try {
-      const { data: bd } = await (supabase as any).from('brackets').select('*').eq('tournament_id', match.tournament_id).single();
-      if (bd) {
-        const { BracketsManager } = await import('brackets-manager');
-        const { InMemoryDatabase } = await import('brackets-memory-db');
-        const db = new InMemoryDatabase(); db.setData(bd.data);
-        const mgr = new BracketsManager(db);
-        const bms = await mgr.get.currentMatches(bd.data.stage[0].id);
-        const bm = bms.find((m: any) =>
-          (m.opponent1?.id === player1.display_name && m.opponent2?.id === player2.display_name) ||
-          (m.opponent1?.id === player2.display_name && m.opponent2?.id === player1.display_name)
-        );
-        if (bm) {
-          await mgr.update.match({ id: bm.id, opponent1: { score: p1Total, result: p1Wins ? 'win' : 'loss' }, opponent2: { score: p2Total, result: !p1Wins ? 'win' : 'loss' } });
-          await (supabase as any).from('brackets').update({ data: (db as any).data, updated_at: new Date().toISOString() }).eq('id', bd.id);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to update bracket data:', err);
-    }
-
     await (supabase as any).from('notifications').insert([
       { player_id: player1.id, type: 'match_result', message: `Match result: ${setsWon1}–${setsWon2} vs ${player2.display_name}`, link: `/players/${player1.username}` },
       { player_id: player2.id, type: 'match_result', message: `Match result: ${setsWon2}–${setsWon1} vs ${player1.display_name}`, link: `/players/${player2.username}` },
@@ -310,23 +289,6 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
       }).catch((err) => {
         console.error('Failed to send Discord webhook:', err);
       });
-    }
-
-    // Check if we need to advance the round (for Swiss tournaments)
-    if (tournament?.stage1_format === 'swiss' && match.stage?.startsWith('Round ')) {
-      try {
-        const roundNum = parseInt(match.stage.replace('Round ', ''), 10);
-        if (!isNaN(roundNum)) {
-          // roundId is 0-indexed in the API
-          fetch(`/api/tournaments/${tournament.id}/advance-round`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roundId: roundNum - 1 })
-          }).catch(err => console.error('Failed to advance round:', err));
-        }
-      } catch (err) {
-        console.error('Error triggering round advance:', err);
-      }
     }
 
     toast.success('Match submitted!');

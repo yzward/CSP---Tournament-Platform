@@ -7,7 +7,6 @@ import { Trophy, Calendar, Layout, Users, Zap, ChevronLeft, ExternalLink, MapPin
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import BracketViewer from '@/components/BracketViewer';
 
 export default function TournamentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -86,25 +85,6 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
     fetchData();
   }, [id, supabase]);
 
-  const handleRegister = async () => {
-    if (!currentUser?.playerId) {
-      toast.error('You need a verified player account to register');
-      return;
-    }
-    setIsRegistering(true);
-    const { error } = await supabase
-      .from('tournament_entrants')
-      .insert({ tournament_id: id, player_id: currentUser.playerId });
-
-    if (error) {
-      toast.error('Failed to register — you may already be registered');
-    } else {
-      setIsRegistered(true);
-      toast.success('Registered successfully!');
-    }
-    setIsRegistering(false);
-  };
-
   if (loading) return <div className="min-h-screen flex items-center justify-center"><Trophy className="text-primary animate-pulse" size={48} /></div>;
   if (!tournament) return <div className="p-12 text-center">Tournament not found</div>;
 
@@ -133,31 +113,15 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Register button */}
-          {tournament.status === 'active' && (
-            tournament.evaroon_id ? (
-              <a
-                href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
-              >
-                <ExternalLink size={14} /> Register on start.gg
-              </a>
-            ) : currentUser && (
-              isRegistered ? (
-                <div className="flex items-center gap-2 px-6 py-3 bg-green-500/10 text-green-500 text-[10px] font-black uppercase tracking-widest rounded-xl">
-                  <CheckCircle size={14} /> Registered
-                </div>
-              ) : (
-                <button
-                  onClick={handleRegister}
-                  disabled={isRegistering}
-                  className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
-                >
-                  <UserPlus size={14} /> {isRegistering ? 'Registering...' : 'Register'}
-                </button>
-              )
-            )
+          {tournament.status === 'active' && tournament.evaroon_id && (
+            <a
+              href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
+            >
+              <ExternalLink size={14} /> Register on start.gg
+            </a>
           )}
         </div>
 
@@ -341,13 +305,13 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
 
           {activeTab === 'bracket' && (
             <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden min-h-[600px] flex flex-col">
-              {tournament.evaroon_id ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                  <Layout className="text-primary opacity-50 mb-6" size={64} />
-                  <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">Bracket Hosted on Start.gg</h3>
-                  <p className="text-muted-foreground text-sm max-w-md mb-8">
-                    This tournament's bracket and matches are managed externally on start.gg.
-                  </p>
+              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                <Layout className="text-primary opacity-50 mb-6" size={64} />
+                <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">Bracket Hosted on Start.gg</h3>
+                <p className="text-muted-foreground text-sm max-w-md mb-8">
+                  This tournament's bracket and matches are managed externally on start.gg.
+                </p>
+                {tournament.evaroon_id && (
                   <a
                     href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
                     target="_blank"
@@ -356,10 +320,8 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
                   >
                     <ExternalLink size={16} /> View Bracket on start.gg
                   </a>
-                </div>
-              ) : (
-                <BracketViewer tournamentId={tournament.id} />
-              )}
+                )}
+              </div>
             </div>
           )}
         </motion.div>

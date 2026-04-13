@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
-import { Trophy, Link2, ChevronLeft, Download } from 'lucide-react';
+import { Trophy, Link2, ChevronLeft, Download, List } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -12,8 +12,27 @@ export default function CreateTournament() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [startggSlug, setStartggSlug] = useState('');
+  const [userTournaments, setUserTournaments] = useState<any[]>([]);
+  const [loadingTournaments, setLoadingTournaments] = useState(true);
   
   const supabase = getSupabase();
+
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      try {
+        const res = await fetch('/api/startgg/tournaments');
+        if (res.ok) {
+          const data = await res.json();
+          setUserTournaments(data.tournaments || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch user tournaments', err);
+      } finally {
+        setLoadingTournaments(false);
+      }
+    };
+    fetchTournaments();
+  }, []);
 
   const handleImportStartgg = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,10 +43,11 @@ export default function CreateTournament() {
     
     setLoading(true);
     try {
-      // Clean up the slug if they pasted a full URL
-      let slug = startggSlug;
-      if (slug.includes('start.gg/tournament/')) {
-        slug = slug.split('start.gg/tournament/')[1].split('/')[0];
+      // Clean up the slug if they pasted a full URL (including hub URLs)
+      let slug = startggSlug.trim();
+      const match = slug.match(/tournament\/([^/?#]+)/);
+      if (match) {
+        slug = match[1];
       }
 
       // Fetch tournament details from our secure API route
@@ -93,6 +113,35 @@ export default function CreateTournament() {
         className="bg-card border border-border rounded-3xl p-8"
       >
         <form onSubmit={handleImportStartgg} className="space-y-6">
+          {userTournaments.length > 0 && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Select from your tournaments</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <List size={16} className="text-muted-foreground" />
+                </div>
+                <select
+                  onChange={(e) => setStartggSlug(e.target.value)}
+                  value={userTournaments.find(t => t.slug === startggSlug) ? startggSlug : ''}
+                  className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
+                >
+                  <option value="" disabled>Select a tournament...</option>
+                  {userTournaments.map((t) => (
+                    <option key={t.id} value={t.slug}>
+                      {t.name} ({new Date(t.startAt * 1000).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-4">
+            <div className="h-px bg-border flex-1"></div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">OR PASTE URL</span>
+            <div className="h-px bg-border flex-1"></div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start.gg Tournament Slug or URL</label>
             <div className="relative">
