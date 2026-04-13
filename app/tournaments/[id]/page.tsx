@@ -133,19 +133,30 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Register button */}
-          {tournament.status === 'active' && currentUser && (
-            isRegistered ? (
-              <div className="flex items-center gap-2 px-6 py-3 bg-green-500/10 text-green-500 text-[10px] font-black uppercase tracking-widest rounded-xl">
-                <CheckCircle size={14} /> Registered
-              </div>
-            ) : (
-              <button
-                onClick={handleRegister}
-                disabled={isRegistering}
-                className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+          {tournament.status === 'active' && (
+            tournament.evaroon_id ? (
+              <a
+                href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
               >
-                <UserPlus size={14} /> {isRegistering ? 'Registering...' : 'Register'}
-              </button>
+                <ExternalLink size={14} /> Register on start.gg
+              </a>
+            ) : currentUser && (
+              isRegistered ? (
+                <div className="flex items-center gap-2 px-6 py-3 bg-green-500/10 text-green-500 text-[10px] font-black uppercase tracking-widest rounded-xl">
+                  <CheckCircle size={14} /> Registered
+                </div>
+              ) : (
+                <button
+                  onClick={handleRegister}
+                  disabled={isRegistering}
+                  className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+                >
+                  <UserPlus size={14} /> {isRegistering ? 'Registering...' : 'Register'}
+                </button>
+              )
             )
           )}
         </div>
@@ -330,7 +341,25 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
 
           {activeTab === 'bracket' && (
             <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden min-h-[600px] flex flex-col">
-              <BracketViewer tournamentId={tournament.id} />
+              {tournament.evaroon_id ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                  <Layout className="text-primary opacity-50 mb-6" size={64} />
+                  <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">Bracket Hosted on Start.gg</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mb-8">
+                    This tournament's bracket and matches are managed externally on start.gg.
+                  </p>
+                  <a
+                    href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primary/90 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
+                  >
+                    <ExternalLink size={16} /> View Bracket on start.gg
+                  </a>
+                </div>
+              ) : (
+                <BracketViewer tournamentId={tournament.id} />
+              )}
             </div>
           )}
         </motion.div>

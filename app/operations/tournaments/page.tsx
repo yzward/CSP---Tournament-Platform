@@ -53,7 +53,7 @@ export default function CreateTournament() {
           held_at: new Date(tournament.startAt * 1000).toISOString().split('T')[0], 
           format: 'swiss',
           status: 'active',
-          evaroon_id: tournament.id.toString(), // Store the start.gg tournament ID
+          evaroon_id: tournament.slug || tournament.url || tournament.id.toString(), // Store the start.gg slug/url
           location: tournament.city || ''
         })
         .select()

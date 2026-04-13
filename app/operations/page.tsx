@@ -286,7 +286,7 @@ export default function OperationsDashboard() {
             href="/operations/tournaments"
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
-            <Plus size={14} /> Create Tournament
+            <Plus size={14} /> Import from start.gg
           </Link>
         </div>
       </div>
@@ -315,19 +315,30 @@ export default function OperationsDashboard() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <Link
-                      href={`/operations/tournaments/${t.id}/bracket`}
-                      className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all text-center"
-                    >
-                      Manage Bracket
-                    </Link>
+                    {t.evaroon_id ? (
+                      <a
+                        href={t.evaroon_id.startsWith('http') ? t.evaroon_id : `https://start.gg/${t.evaroon_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                      >
+                        <ExternalLink size={10} /> Start.gg
+                      </a>
+                    ) : (
+                      <Link
+                        href={`/operations/tournaments/${t.id}/bracket`}
+                        className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all text-center"
+                      >
+                        Manage Bracket
+                      </Link>
+                    )}
                     {t.status === 'active' && (
                       <button
-                        onClick={() => handleAutoRank(t.id, t.name)}
+                        onClick={() => t.evaroon_id ? toast.info('Syncing from start.gg coming soon!') : handleAutoRank(t.id, t.name)}
                         className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                        title="Rank players by wins, then point differential (Swiss tiebreaker)"
+                        title={t.evaroon_id ? "Sync results from start.gg" : "Rank players by wins, then point differential (Swiss tiebreaker)"}
                       >
-                        <ListOrdered size={10} /> Auto-Rank
+                        <ListOrdered size={10} /> {t.evaroon_id ? 'Sync Data' : 'Auto-Rank'}
                       </button>
                     )}
                   </div>

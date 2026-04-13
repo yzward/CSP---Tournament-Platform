@@ -36,6 +36,8 @@ export const GET_TOURNAMENT_QUERY = `
     tournament(slug: $slug) {
       id
       name
+      slug
+      url
       city
       startAt
       events {
