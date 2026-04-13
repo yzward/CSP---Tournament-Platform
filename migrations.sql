@@ -1,0 +1,157 @@
+-- ============================================================
+-- ClashStatsPro — Migrations
+-- Run in Supabase SQL Editor (Dashboard → SQL Editor)
+-- All CREATE/ALTER statements are idempotent — safe to re-run
+-- ============================================================
+
+-- Tournament optional columns (added in April 2026 expansion)
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organiser_id UUID REFERENCES players(id) ON DELETE SET NULL;
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS discord_webhook_url TEXT;
+
+-- ============================================================
+-- player_stats — refresh function + triggers
+-- Real schema (confirmed):
+--   matches:        id, tournament_id, status, ref_id, stage, court_id, ...
+--   match_players:  id, match_id, player_id, sets_won, total_points, winner (bool)
+--   finish_events:  id, match_id, scorer_player_id, finish_type, points, set_number, bey_id
+--   player_stats:   id, player_id, matches_played, matches_won, win_rate,
+--                   ext_count, ovr_count, bur_count, spn_count, wrn_count, pen_count,
+--                   tournaments_entered, best_placement, updated_at
+-- ============================================================
+
+-- Function: recalculate all stats for one player
+CREATE OR REPLACE FUNCTION refresh_player_stats(p_id UUID) RETURNS VOID AS $$
+DECLARE
+  v_played   INT := 0;
+  v_won      INT := 0;
+  v_rate     FLOAT := 0;
+  v_ext      INT := 0;
+  v_ovr      INT := 0;
+  v_bur      INT := 0;
+  v_spn      INT := 0;
+  v_wrn      INT := 0;
+  v_pen      INT := 0;
+  v_entered  INT := 0;
+  v_best     INT := NULL;
+BEGIN
+  -- Matches played (any row in match_players for this player)
+  SELECT COUNT(*)::int INTO v_played
+    FROM match_players mp WHERE mp.player_id = p_id;
+
+  -- Matches won
+  SELECT COUNT(*)::int INTO v_won
+    FROM match_players mp WHERE mp.player_id = p_id AND mp.winner = true;
+
+  -- Win rate
+  IF v_played > 0 THEN
+    v_rate := ROUND((v_won::float / v_played) * 100, 1);
+  END IF;
+
+  -- Finish type counts from finish_events
+  SELECT
+    COUNT(*) FILTER (WHERE fe.finish_type = 'EXT')::int,
+    COUNT(*) FILTER (WHERE fe.finish_type = 'OVR')::int,
+    COUNT(*) FILTER (WHERE fe.finish_type = 'BUR')::int,
+    COUNT(*) FILTER (WHERE fe.finish_type = 'SPN')::int,
+    COUNT(*) FILTER (WHERE fe.finish_type = 'WRN')::int,
+    COUNT(*) FILTER (WHERE fe.finish_type = 'PEN')::int
+  INTO v_ext, v_ovr, v_bur, v_spn, v_wrn, v_pen
+  FROM finish_events fe WHERE fe.scorer_player_id = p_id;
+
+  -- Tournaments entered
+  SELECT COUNT(*)::int INTO v_entered
+    FROM tournament_entrants te WHERE te.player_id = p_id;
+
+  -- Best placement (lowest number = best)
+  SELECT MIN(te.placement) INTO v_best
+    FROM tournament_entrants te WHERE te.player_id = p_id AND te.placement IS NOT NULL;
+
+  INSERT INTO player_stats (
+    player_id, matches_played, matches_won, win_rate,
+    ext_count, ovr_count, bur_count, spn_count, wrn_count, pen_count,
+    tournaments_entered, best_placement, updated_at
+  ) VALUES (
+    p_id,
+    COALESCE(v_played, 0), COALESCE(v_won, 0), COALESCE(v_rate, 0),
+    COALESCE(v_ext, 0), COALESCE(v_ovr, 0), COALESCE(v_bur, 0),
+    COALESCE(v_spn, 0), COALESCE(v_wrn, 0), COALESCE(v_pen, 0),
+    COALESCE(v_entered, 0), v_best, NOW()
+  )
+  ON CONFLICT (player_id) DO UPDATE SET
+    matches_played      = EXCLUDED.matches_played,
+    matches_won         = EXCLUDED.matches_won,
+    win_rate            = EXCLUDED.win_rate,
+    ext_count           = EXCLUDED.ext_count,
+    ovr_count           = EXCLUDED.ovr_count,
+    bur_count           = EXCLUDED.bur_count,
+    spn_count           = EXCLUDED.spn_count,
+    wrn_count           = EXCLUDED.wrn_count,
+    pen_count           = EXCLUDED.pen_count,
+    tournaments_entered = EXCLUDED.tournaments_entered,
+    best_placement      = EXCLUDED.best_placement,
+    updated_at          = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger: refresh player stats when a match_players row changes
+-- (covers match completion — when winner is set)
+CREATE OR REPLACE FUNCTION trg_fn_refresh_match_player_stats() RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM refresh_player_stats(COALESCE(NEW.player_id, OLD.player_id));
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_refresh_match_player_stats ON match_players;
+CREATE TRIGGER trg_refresh_match_player_stats
+  AFTER INSERT OR UPDATE OR DELETE ON match_players
+  FOR EACH ROW EXECUTE FUNCTION trg_fn_refresh_match_player_stats();
+
+-- Trigger: refresh player stats when a finish_event is logged
+CREATE OR REPLACE FUNCTION trg_fn_refresh_finish_stats() RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM refresh_player_stats(COALESCE(NEW.scorer_player_id, OLD.scorer_player_id));
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_refresh_finish_stats ON finish_events;
+CREATE TRIGGER trg_refresh_finish_stats
+  AFTER INSERT OR UPDATE OR DELETE ON finish_events
+  FOR EACH ROW EXECUTE FUNCTION trg_fn_refresh_finish_stats();
+
+-- ============================================================
+-- Match state columns (added for scorer v2)
+-- These track current-set scores + set counts for live display
+-- and spectators. finish_events remains the event log.
+-- ============================================================
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS score1      INT DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS score2      INT DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS sets_won1   INT DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS sets_won2   INT DEFAULT 0;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS current_set INT DEFAULT 1;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS point_cap   INT DEFAULT 5;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS sets_to_win INT DEFAULT 2;
+
+-- Unique constraint on brackets.tournament_id (needed for upsert / regeneration)
+ALTER TABLE brackets ADD CONSTRAINT brackets_tournament_id_unique UNIQUE (tournament_id);
+
+-- RLS policies for all tables used in match/bracket workflow
+CREATE POLICY IF NOT EXISTS "authenticated_write_tournament_entrants" ON tournament_entrants FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "public_read_brackets" ON brackets FOR SELECT USING (true);
+CREATE POLICY IF NOT EXISTS "authenticated_write_brackets" ON brackets FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "authenticated_write_courts" ON courts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "authenticated_write_matches" ON matches FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "authenticated_write_match_players" ON match_players FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY IF NOT EXISTS "authenticated_write_finish_events" ON finish_events FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- Backfill: recalculate stats for all existing players
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT id FROM players LOOP
+    PERFORM refresh_player_stats(r.id);
+  END LOOP;
+END $$;
