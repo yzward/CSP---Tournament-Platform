@@ -267,7 +267,7 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
                 <span className="px-4 py-1 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-full">
                   {player.region}
                 </span>
-                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@')) && (
+                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@') || player.discord_id.length < 30) && (
                   <span className="px-4 py-1 bg-slate-500/10 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-full border border-slate-500/20">
                     Unclaimed
                   </span>

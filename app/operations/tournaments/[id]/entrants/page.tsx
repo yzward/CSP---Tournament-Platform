@@ -93,7 +93,11 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
 
     if (error) {
       console.error('Error adding player to tournament:', error);
-      toast.error(`Failed to add player: ${error.message}`);
+      if (error.message.includes('column "status" of relation "tournament_entrants" does not exist')) {
+        toast.error('Database update required. Please run the migration SQL in your Supabase dashboard.');
+      } else {
+        toast.error(`Failed to add player: ${error.message}`);
+      }
     } else if (data && data.length > 0) {
       setEntrants([...entrants, data[0]]);
       toast.success(`${player.display_name} added to tournament`);
@@ -199,11 +203,11 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-black uppercase tracking-tight italic">{entrant.players?.display_name}</div>
                             <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                              (!entrant.players?.discord_id || entrant.players?.discord_id.startsWith('unclaimed_') || entrant.players?.discord_id.includes('@'))
+                              (!entrant.players?.discord_id || entrant.players?.discord_id.startsWith('unclaimed_') || entrant.players?.discord_id.includes('@') || entrant.players?.discord_id.length < 30)
                                 ? 'bg-slate-500/10 text-slate-500' 
                                 : 'bg-green-500/10 text-green-500'
                             }`}>
-                              {(!entrant.players?.discord_id || entrant.players?.discord_id.startsWith('unclaimed_') || entrant.players?.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
+                              {(!entrant.players?.discord_id || entrant.players?.discord_id.startsWith('unclaimed_') || entrant.players?.discord_id.includes('@') || entrant.players?.discord_id.length < 30) ? 'Unclaimed' : 'Claimed'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -281,11 +285,11 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                             <div className="flex items-center gap-2">
                               <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
                               <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                                (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@'))
+                                (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@') || player.discord_id.length < 30)
                                   ? 'bg-slate-500/10 text-slate-500' 
                                   : 'bg-green-500/10 text-green-500'
                               }`}>
-                                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
+                                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@') || player.discord_id.length < 30) ? 'Unclaimed' : 'Claimed'}
                               </span>
                             </div>
                             <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
@@ -321,11 +325,11 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                             <div className="flex items-center gap-2">
                               <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
                               <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                                (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@'))
+                                (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@') || player.discord_id.length < 30)
                                   ? 'bg-slate-500/10 text-slate-500' 
                                   : 'bg-green-500/10 text-green-500'
                               }`}>
-                                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
+                                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@') || player.discord_id.length < 30) ? 'Unclaimed' : 'Claimed'}
                               </span>
                             </div>
                             <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>

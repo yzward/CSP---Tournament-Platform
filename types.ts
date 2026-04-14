@@ -214,6 +214,7 @@ export interface TournamentEntrant {
   id: string;
   tournament_id: string;
   player_id: string;
+  status: string;
   seed?: number;
   placement?: number;
   points_awarded?: number;
