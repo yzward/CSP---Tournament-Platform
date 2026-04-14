@@ -140,13 +140,26 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS sets_to_win INT DEFAULT 2;
 ALTER TABLE brackets ADD CONSTRAINT brackets_tournament_id_unique UNIQUE (tournament_id);
 
 -- RLS policies for all tables used in match/bracket workflow
-CREATE POLICY IF NOT EXISTS "authenticated_write_tournament_entrants" ON tournament_entrants FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "public_read_brackets" ON brackets FOR SELECT USING (true);
-CREATE POLICY IF NOT EXISTS "authenticated_write_brackets" ON brackets FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "authenticated_write_courts" ON courts FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "authenticated_write_matches" ON matches FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "authenticated_write_match_players" ON match_players FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "authenticated_write_finish_events" ON finish_events FOR ALL TO authenticated USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "authenticated_write_tournament_entrants" ON tournament_entrants;
+CREATE POLICY "authenticated_write_tournament_entrants" ON tournament_entrants FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "public_read_brackets" ON brackets;
+CREATE POLICY "public_read_brackets" ON brackets FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "authenticated_write_brackets" ON brackets;
+CREATE POLICY "authenticated_write_brackets" ON brackets FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated_write_courts" ON courts;
+CREATE POLICY "authenticated_write_courts" ON courts FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated_write_matches" ON matches;
+CREATE POLICY "authenticated_write_matches" ON matches FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated_write_match_players" ON match_players;
+CREATE POLICY "authenticated_write_match_players" ON match_players FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "authenticated_write_finish_events" ON finish_events;
+CREATE POLICY "authenticated_write_finish_events" ON finish_events FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Backfill: recalculate stats for all existing players
 DO $$
