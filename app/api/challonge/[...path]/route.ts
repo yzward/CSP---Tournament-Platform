@@ -31,7 +31,9 @@ async function handleRequest(req: NextRequest, params: { path: string[] }) {
   // Add the API key to the query parameters
   queryParams.set("api_key", apiKey);
 
-  const challongeUrl = `https://api.challonge.com/v1/${challongePath}.json?${queryParams.toString()}`;
+  // Only append .json if it's not already there
+  const pathWithExtension = challongePath.endsWith('.json') ? challongePath : `${challongePath}.json`;
+  const challongeUrl = `https://api.challonge.com/v1/${pathWithExtension}?${queryParams.toString()}`;
 
   console.log(`Proxying ${req.method} request to Challonge: ${challongePath}`);
 

@@ -202,16 +202,16 @@ export default function OperationsDashboard() {
             </button>
           </div>
           <Link
-            href="/operations/teams"
-            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
-          >
-            <Users size={14} /> Manage Teams
-          </Link>
-          <Link
             href="/operations/tournaments"
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
             <Plus size={14} /> Import from Challonge
+          </Link>
+          <Link
+            href="/operations/teams"
+            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+          >
+            <Users size={14} /> Manage Teams
           </Link>
         </div>
       </div>
@@ -395,36 +395,6 @@ export default function OperationsDashboard() {
               <Link href="/operations/tournaments" className="block text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors pt-2">
                 View All Tournaments
               </Link>
-            </div>
-          </div>
-
-          {/* Active Referees */}
-          <div className="bg-card border border-border rounded-[2rem] p-8 shadow-xl">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                <Users className="text-primary" size={20} />
-              </div>
-              <h2 className="text-xl font-black uppercase tracking-tight italic">Active Referees</h2>
-            </div>
-
-            <div className="space-y-4">
-              {referees.map((ref) => (
-                <div key={ref.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden border border-border">
-                      {ref.avatar_url ? (
-                        <img src={ref.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-secondary flex items-center justify-center"><User size={12} className="text-primary" /></div>
-                      )}
-                    </div>
-                    <span className="text-xs font-black uppercase tracking-tight italic">{ref.display_name}</span>
-                  </div>
-                  <button className="p-2 text-muted-foreground hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
-                    <Settings size={14} />
-                  </button>
-                </div>
-              ))}
             </div>
           </div>
 
