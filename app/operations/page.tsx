@@ -213,6 +213,58 @@ export default function OperationsDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Left Column: Tournament Control & Refs */}
         <div className="space-y-12">
+          {/* Tournament Setup Guide */}
+          <div className="bg-card border border-border rounded-[2rem] p-8 shadow-xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Shield size={80} />
+            </div>
+            <div className="flex items-center gap-3 mb-8 relative z-10">
+              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                <Shield className="text-primary" size={20} />
+              </div>
+              <h2 className="text-xl font-black uppercase tracking-tight italic">Setup Guide</h2>
+            </div>
+
+            <div className="space-y-6 relative z-10">
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-[10px] font-black flex items-center justify-center">1</div>
+                <div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Create/Import</h3>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Start by importing an existing tournament from start.gg or creating a new one directly here.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-[10px] font-black flex items-center justify-center">2</div>
+                <div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Manage Entrants</h3>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Link your ranked players from the database to the tournament. This ensures stats are tracked correctly.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-[10px] font-black flex items-center justify-center">3</div>
+                <div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Sync to start.gg</h3>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Once your list is ready, sync to start.gg to create the entrants on their platform for bracket management.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-[10px] font-black flex items-center justify-center">4</div>
+                <div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Live Scoring</h3>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Use the Live Scorer to report results. They will automatically push to start.gg and update local rankings.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Tournament Status & Management */}
           <div className="bg-card border border-border rounded-[2rem] p-8 shadow-xl">
             <div className="flex items-center gap-3 mb-8">
@@ -244,6 +296,12 @@ export default function OperationsDashboard() {
                     </a>
                     {t.status === 'active' && (
                       <div className="flex flex-col gap-2">
+                        <Link
+                          href={`/operations/tournaments/${t.id}/entrants`}
+                          className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                        >
+                          <Users size={10} /> Manage Entrants
+                        </Link>
                         <button
                           onClick={async () => {
                             setLoading(true);

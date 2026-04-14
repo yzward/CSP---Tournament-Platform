@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(req: Request) {
   try {
-    const { name, slug, date, organizationId, gameId = 1, format = 'swiss' } = await req.json();
+    const { name, slug, date, organizationId, gameId = 1, format = 'single_elimination', location = 'Online', top_cut_size = null, organiser_id = null } = await req.json();
     
     if (!name || !slug || !date || !organizationId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         startAt,
         endAt,
         ownerId: organizationId,
-        isOnline: true // Default to online for ease
+        isOnline: location.toLowerCase().includes('online')
       }
     });
 
@@ -29,13 +29,11 @@ export async function POST(req: Request) {
     const tournamentSlug = tournamentData.createTournament.slug;
 
     // 2. Create Event on start.gg
-    // videogameId: 1 is usually Smash Ultimate, but we should probably let the user choose or find a better default
-    // For now we'll use a placeholder or the provided gameId
     const eventData = await fetchStartGG(CREATE_EVENT_MUTATION, {
       tournamentId,
       input: {
         name: 'Main Event',
-        videogameId: gameId,
+        videogameId: parseInt(gameId.toString()),
         type: 1 // 1 = Singles
       }
     });
@@ -50,7 +48,9 @@ export async function POST(req: Request) {
         format,
         status: 'active',
         evaroon_id: tournamentSlug,
-        location: 'Online'
+        location,
+        top_cut_size: top_cut_size ? parseInt(top_cut_size.toString()) : null,
+        organiser_id: organiser_id || null
       })
       .select()
       .single();

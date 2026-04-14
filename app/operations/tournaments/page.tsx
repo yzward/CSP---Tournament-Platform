@@ -93,31 +93,44 @@ export default function CreateTournament() {
 
   const [activeTab, setActiveTab] = useState<'import' | 'create'>('import');
   const [organizations, setOrganizations] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
     date: new Date().toISOString().split('T')[0],
     organizationId: '',
-    gameId: '1' // Default to 1
+    gameId: '1', // Default to 1
+    format: 'single_elimination',
+    location: 'Online',
+    top_cut_size: '',
+    organiser_id: ''
   });
 
   useEffect(() => {
-    const fetchOrgs = async () => {
+    const fetchInitialData = async () => {
       try {
-        const res = await fetch('/api/startgg/organizations');
-        if (res.ok) {
-          const data = await res.json();
+        const [orgsRes, playersRes] = await Promise.all([
+          fetch('/api/startgg/organizations'),
+          supabase.from('players').select('id, display_name').order('display_name')
+        ]);
+
+        if (orgsRes.ok) {
+          const data = await orgsRes.json();
           setOrganizations(data.organizations || []);
           if (data.organizations?.length > 0) {
             setFormData(prev => ({ ...prev, organizationId: data.organizations[0].id }));
           }
         }
+
+        if (playersRes.data) {
+          setPlayers(playersRes.data);
+        }
       } catch (err) {
-        console.error('Failed to fetch organizations', err);
+        console.error('Failed to fetch initial data', err);
       }
     };
-    fetchOrgs();
-  }, []);
+    fetchInitialData();
+  }, [supabase]);
 
   const handleCreateTournament = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +139,10 @@ export default function CreateTournament() {
       const response = await fetch('/api/startgg/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          top_cut_size: formData.top_cut_size ? parseInt(formData.top_cut_size) : null
+        })
       });
       
       const result = await response.json();
@@ -297,26 +313,76 @@ export default function CreateTournament() {
                     ))
                   )}
                 </select>
-                {organizations.length === 0 && (
-                  <p className="text-[8px] text-amber-500 font-bold uppercase tracking-widest mt-1">
-                    You need to be an admin of an organization on start.gg
-                  </p>
-                )}
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Game (Video Game ID)</label>
-              <input
-                type="number"
-                required
-                value={formData.gameId}
-                onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                placeholder="e.g., 1 for Smash, 1386 for Clash Royale"
-              />
-              <p className="text-[8px] text-muted-foreground">Find game IDs on start.gg or leave as 1 for now.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Format</label>
+                <select
+                  required
+                  value={formData.format}
+                  onChange={(e) => setFormData({ ...formData, format: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
+                >
+                  <option value="single_elimination">Single Elimination</option>
+                  <option value="double_elimination">Double Elimination</option>
+                  <option value="swiss">Swiss</option>
+                  <option value="round_robin">Round Robin</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Location</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g., Online or London, UK"
+                />
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Game (Video Game ID)</label>
+                <input
+                  type="number"
+                  required
+                  value={formData.gameId}
+                  onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g., 1 for Smash, 1386 for Clash Royale"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Organizer</label>
+                <select
+                  value={formData.organiser_id}
+                  onChange={(e) => setFormData({ ...formData, organiser_id: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
+                >
+                  <option value="">Select an organizer (optional)</option>
+                  {players.map(p => (
+                    <option key={p.id} value={p.id}>{p.display_name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {formData.format === 'double_elimination' && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Top Cut Size</label>
+                <input
+                  type="number"
+                  value={formData.top_cut_size}
+                  onChange={(e) => setFormData({ ...formData, top_cut_size: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="Number of players advancing to top cut"
+                />
+              </div>
+            )}
 
             <button
               type="submit"

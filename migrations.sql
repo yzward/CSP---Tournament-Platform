@@ -8,6 +8,7 @@
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS location TEXT;
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS description TEXT;
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organiser_id UUID REFERENCES players(id) ON DELETE SET NULL;
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS top_cut_size INT;
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS discord_webhook_url TEXT;
 
 -- ============================================================
