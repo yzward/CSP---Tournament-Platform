@@ -137,19 +137,24 @@ export default function CreateTournament() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await fetch('/api/startgg/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          top_cut_size: formData.top_cut_size ? parseInt(formData.top_cut_size) : null
+      const { data: newTournament, error: dbError } = await supabase
+        .from('tournaments')
+        .insert({
+          name: formData.name,
+          held_at: formData.date,
+          format: formData.format,
+          status: 'active',
+          evaroon_id: formData.slug,
+          location: formData.location,
+          top_cut_size: formData.top_cut_size ? parseInt(formData.top_cut_size) : null,
+          organiser_id: formData.organiser_id || null
         })
-      });
-      
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
+        .select()
+        .single();
 
-      toast.success('Tournament created on start.gg and Clash Stats!');
+      if (dbError) throw dbError;
+
+      toast.success('Tournament created locally!');
       router.push('/operations');
     } catch (error: any) {
       toast.error(`Failed to create: ${error.message}`);
@@ -387,10 +392,10 @@ export default function CreateTournament() {
 
             <button
               type="submit"
-              disabled={loading || organizations.length === 0}
+              disabled={loading}
               className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? 'Creating...' : <><Plus size={16} /> Create on start.gg & Clash Stats</>}
+              {loading ? 'Creating...' : <><Plus size={16} /> Create Local Tournament</>}
             </button>
           </form>
         )}

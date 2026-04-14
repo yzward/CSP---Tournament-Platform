@@ -17,7 +17,6 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
   const [allPlayers, setAllPlayers] = useState<Player[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [isCreatingPlayer, setIsCreatingPlayer] = useState(false);
   const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global' });
@@ -119,28 +118,6 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
     }
   };
 
-  const handleSyncToStartGG = async () => {
-    setSyncing(true);
-    try {
-      const res = await fetch('/api/startgg/sync-entrants', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tournamentId: id })
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error);
-      toast.success(result.message);
-      
-      // Refresh entrants to get startgg_entrant_id
-      const { data } = await supabase.from('tournament_entrants').select('*, players(*)').eq('tournament_id', id);
-      if (data) setEntrants(data);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to sync');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const handleSeedByRank = async () => {
     setSeeding(true);
     try {
@@ -214,14 +191,6 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
           >
             {seeding ? <RefreshCw size={14} className="animate-spin" /> : <Trophy size={14} />}
             Seed by Rank
-          </button>
-          <button
-            onClick={handleSyncToStartGG}
-            disabled={syncing || entrants.length === 0}
-            className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50"
-          >
-            {syncing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Sync All to start.gg
           </button>
         </div>
       </div>

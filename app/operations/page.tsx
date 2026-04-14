@@ -313,29 +313,7 @@ export default function OperationsDashboard() {
                   </div>
 
                   {t.status === 'active' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={async () => {
-                          setLoading(true);
-                          try {
-                            const res = await fetch('/api/startgg/sync-entrants', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ tournamentId: t.id })
-                            });
-                            const result = await res.json();
-                            if (!res.ok) throw new Error(result.error);
-                            toast.success(result.message);
-                          } catch (err: any) {
-                            toast.error(err.message || 'Failed to sync entrants');
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                        className="py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
-                      >
-                        <RefreshCw size={10} /> Sync Out
-                      </button>
+                    <div className="grid grid-cols-1 gap-2">
                       <button
                         onClick={async () => {
                           setLoading(true);

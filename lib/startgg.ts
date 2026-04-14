@@ -136,32 +136,3 @@ export const GET_USER_ORGANIZATIONS_QUERY = `
     }
   }
 `;
-
-export const CREATE_TOURNAMENT_MUTATION = `
-  mutation CreateTournament($input: CreateTournamentInput!) {
-    createTournament(input: $input) {
-      id
-      name
-      slug
-      url
-    }
-  }
-`;
-
-export const CREATE_EVENT_MUTATION = `
-  mutation CreateEvent($tournamentId: ID!, $input: CreateEventInput!) {
-    createEvent(tournamentId: $tournamentId, input: $input) {
-      id
-      name
-    }
-  }
-`;
-
-export const CREATE_ENTRANTS_MUTATION = `
-  mutation CreateEntrants($eventId: ID!, $entrants: [CreateEntrantInput!]!) {
-    createEntrants(eventId: $eventId, entrants: $entrants) {
-      id
-      name
-    }
-  }
-`;
