@@ -189,16 +189,16 @@ export default function Navbar() {
     { name: 'Ref Dashboard', href: '/referee', icon: Zap, show: isRef },
     { name: 'Operations', href: '/operations', icon: Settings, show: isOps },
     { name: 'Admin Panel', href: '/admin', icon: ShieldAlert, show: isAdmin },
-    { name: 'Players', href: '/admin/players', icon: Users, show: isAdmin },
-    { name: 'Roles', href: '/admin/roles', icon: UserCog, show: isAdmin },
-    { name: 'Points', href: '/admin/points', icon: Award, show: isAdmin },
+    { name: 'Players', href: '/admin/players', icon: Users, show: false }, // Hidden from main nav, accessible via Admin Panel
+    { name: 'Roles', href: '/admin/roles', icon: UserCog, show: false },
+    { name: 'Points', href: '/admin/points', icon: Award, show: false },
   ];
 
   const visibleLinks = navLinks.filter(link => link.show);
   
-  // Desktop: Core navigation in the top bar, Admin sub-pages in the profile dropdown
-  const desktopMainLinks = visibleLinks.filter(link => !link.href.startsWith('/admin/'));
-  const desktopExtraLinks = visibleLinks.filter(link => link.href.startsWith('/admin/'));
+  // Desktop: Core navigation in the top bar
+  const desktopMainLinks = visibleLinks.filter(link => !link.href.startsWith('/admin') && link.href !== '/operations');
+  const desktopManagementLinks = visibleLinks.filter(link => link.href.startsWith('/admin') || link.href === '/operations');
 
   // Mobile: Show first 4 links in bottom bar, others in "More"
   const mobileMainLinks = visibleLinks.slice(0, 4);
@@ -295,9 +295,9 @@ export default function Navbar() {
                               <User size={14} /> My Profile
                             </Link>
                             
-                            {desktopExtraLinks.length > 0 && (
+                            {desktopManagementLinks.length > 0 && (
                               <div className="py-1 border-y border-white/5 my-1">
-                                {desktopExtraLinks.map((link) => (
+                                {desktopManagementLinks.map((link) => (
                                   <Link
                                     key={link.href}
                                     href={link.href}

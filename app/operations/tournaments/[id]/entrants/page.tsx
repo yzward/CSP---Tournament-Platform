@@ -18,6 +18,8 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [isCreatingPlayer, setIsCreatingPlayer] = useState(false);
+  const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global' });
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -37,6 +39,43 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
     fetchData();
   }, [id, supabase]);
 
+  const handleCreatePlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingPlayer(true);
+    try {
+      // Generate a placeholder discord_id for unclaimed accounts
+      const unclaimedId = `unclaimed_${Math.random().toString(36).substring(2, 11)}`;
+      
+      const { data: player, error: pError } = await supabase
+        .from('players')
+        .insert({
+          ...newPlayer,
+          discord_id: unclaimedId,
+          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newPlayer.username}`,
+          ranking_points: 0,
+          club: 'None'
+        })
+        .select()
+        .single();
+      
+      if (pError) throw pError;
+      
+      // Add to allPlayers list
+      setAllPlayers([...allPlayers, player]);
+      
+      // Automatically add to tournament
+      await handleAddPlayer(player);
+      
+      setNewPlayer({ display_name: '', username: '', region: 'Global' });
+      toast.success('New player created and added to tournament');
+    } catch (err: any) {
+      console.error('Error creating player:', err);
+      toast.error(`Failed to create player: ${err.message}`);
+    } finally {
+      setIsCreatingPlayer(false);
+    }
+  };
+
   const handleAddPlayer = async (player: Player) => {
     if (entrants.some(e => e.player_id === player.id)) {
       toast.error('Player already added');
@@ -50,13 +89,13 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
         player_id: player.id,
         status: 'registered'
       })
-      .select('*, players(*)')
-      .single();
+      .select('*, players(*)');
 
     if (error) {
-      toast.error('Failed to add player');
-    } else {
-      setEntrants([...entrants, data]);
+      console.error('Error adding player to tournament:', error);
+      toast.error(`Failed to add player: ${error.message}`);
+    } else if (data && data.length > 0) {
+      setEntrants([...entrants, data[0]]);
       toast.success(`${player.display_name} added to tournament`);
     }
   };
@@ -189,88 +228,142 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        {/* Right: Add Players */}
-        <div className="space-y-6">
-          <div className="px-4">
-            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Add from Database</h2>
+        {/* Right: Add Players & Quick Create */}
+        <div className="space-y-12">
+          {/* Add from Database */}
+          <div className="space-y-6">
+            <div className="px-4">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Add from Database</h2>
+            </div>
+
+            <div className="bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-8">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search size={18} className="text-muted-foreground" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search players by name or username..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-background border border-border rounded-2xl pl-12 pr-4 py-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <div className="space-y-3">
+                {searchQuery ? (
+                  filteredPlayers.length > 0 ? (
+                    filteredPlayers.map((player) => (
+                      <button
+                        key={player.id}
+                        onClick={() => handleAddPlayer(player)}
+                        disabled={entrants.some(e => e.player_id === player.id)}
+                        className="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:hover:bg-white/5"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
+                            {player.avatar_url ? (
+                              <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Users size={12} className="text-primary" />
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                            <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                          <Plus size={14} />
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-center py-8 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">No players found</p>
+                  )
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground px-2">Top Ranked Players</p>
+                    {allPlayers.slice(0, 10).map((player) => (
+                      <button
+                        key={player.id}
+                        onClick={() => handleAddPlayer(player)}
+                        disabled={entrants.some(e => e.player_id === player.id)}
+                        className="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:hover:bg-white/5"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-8 h-8 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
+                            {player.avatar_url ? (
+                              <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <Users size={12} className="text-primary" />
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                            <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
+                          </div>
+                        </div>
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                          <Plus size={14} />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-8">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search size={18} className="text-muted-foreground" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search players by name or username..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-background border border-border rounded-2xl pl-12 pr-4 py-4 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-primary transition-colors"
-              />
+          {/* Quick Create Player */}
+          <div className="space-y-6">
+            <div className="px-4">
+              <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Quick Create Player</h2>
             </div>
-
-            <div className="space-y-3">
-              {searchQuery ? (
-                filteredPlayers.length > 0 ? (
-                  filteredPlayers.map((player) => (
-                    <button
-                      key={player.id}
-                      onClick={() => handleAddPlayer(player)}
-                      disabled={entrants.some(e => e.player_id === player.id)}
-                      className="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:hover:bg-white/5"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
-                          {player.avatar_url ? (
-                            <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <Users size={12} className="text-primary" />
-                          )}
-                        </div>
-                        <div className="text-left">
-                          <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
-                        </div>
-                      </div>
-                      <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                        <Plus size={14} />
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">No players found</p>
-                )
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground px-2">Top Ranked Players</p>
-                  {allPlayers.slice(0, 10).map((player) => (
-                    <button
-                      key={player.id}
-                      onClick={() => handleAddPlayer(player)}
-                      disabled={entrants.some(e => e.player_id === player.id)}
-                      className="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:hover:bg-white/5"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
-                          {player.avatar_url ? (
-                            <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <Users size={12} className="text-primary" />
-                          )}
-                        </div>
-                        <div className="text-left">
-                          <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
-                          <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
-                        </div>
-                      </div>
-                      <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-all">
-                        <Plus size={14} />
-                      </div>
-                    </button>
-                  ))}
+            <form onSubmit={handleCreatePlayer} className="bg-card border border-border rounded-[2.5rem] p-8 shadow-2xl space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Display Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={newPlayer.display_name}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, display_name: e.target.value })}
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                    placeholder="e.g. John Doe"
+                  />
                 </div>
-              )}
-            </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={newPlayer.username}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, username: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                    placeholder="e.g. johndoe"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Region</label>
+                <input
+                  type="text"
+                  value={newPlayer.region}
+                  onChange={(e) => setNewPlayer({ ...newPlayer, region: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. North America"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isCreatingPlayer}
+                className="w-full py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isCreatingPlayer ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                Create & Add to Tournament
+              </button>
+            </form>
           </div>
         </div>
       </div>

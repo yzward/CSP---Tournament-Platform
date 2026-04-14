@@ -284,90 +284,89 @@ export default function OperationsDashboard() {
               {tournaments.slice(0, 3).map((t) => (
                 <div key={t.id} className="p-4 bg-white/5 rounded-2xl border border-white/5 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-tight italic truncate max-w-[150px]">{t.name}</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black uppercase tracking-tight italic truncate max-w-[180px]">{t.name}</span>
+                      <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{new Date(t.held_at).toLocaleDateString()}</span>
+                    </div>
                     <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
                       t.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'
                     }`}>
                       {t.status}
                     </div>
                   </div>
+
                   <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href={`/operations/tournaments/${t.id}/entrants`}
+                      className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Users size={10} /> Entrants
+                    </Link>
                     <a
                       href={t.evaroon_id?.startsWith('http') ? t.evaroon_id : `https://start.gg/${t.evaroon_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                      className="py-2.5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 border border-white/5"
                     >
                       <ExternalLink size={10} /> Start.gg
                     </a>
-                    {t.status === 'active' && (
-                      <div className="flex flex-col gap-2">
-                        <Link
-                          href={`/operations/tournaments/${t.id}/entrants`}
-                          className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                        >
-                          <Users size={10} /> Manage Entrants
-                        </Link>
-                        <button
-                          onClick={async () => {
-                            setLoading(true);
-                            try {
-                              const res = await fetch('/api/startgg/sync-entrants', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                  tournamentId: t.id
-                                })
-                              });
-                              const result = await res.json();
-                              if (!res.ok) throw new Error(result.error);
-                              toast.success(result.message);
-                            } catch (err: any) {
-                              toast.error(err.message || 'Failed to sync entrants');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          className="py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                          title="Sync players from our database to start.gg"
-                        >
-                          <Users size={10} /> Sync to start.gg
-                        </button>
-                        <button
-                          onClick={async () => {
-                            setLoading(true);
-                            try {
-                              const res = await fetch('/api/startgg/sync-results', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ 
-                                  tournamentId: t.id
-                                })
-                              });
-                              const result = await res.json();
-                              if (!res.ok) throw new Error(result.error);
-                              toast.success(result.message);
-                              // Refresh matches
-                              const enrichedMatches = await fetchMatches();
-                              setMatches(enrichedMatches);
-                            } catch (err: any) {
-                              toast.error(err.message || 'Failed to sync results');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                          title="Sync results from start.gg"
-                        >
-                          <ListOrdered size={10} /> Sync Results
-                        </button>
-                      </div>
-                    )}
                   </div>
-                  <div className="grid grid-cols-1 gap-2">
+
+                  {t.status === 'active' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            const res = await fetch('/api/startgg/sync-entrants', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ tournamentId: t.id })
+                            });
+                            const result = await res.json();
+                            if (!res.ok) throw new Error(result.error);
+                            toast.success(result.message);
+                          } catch (err: any) {
+                            toast.error(err.message || 'Failed to sync entrants');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <RefreshCw size={10} /> Sync Out
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            const res = await fetch('/api/startgg/sync-results', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ tournamentId: t.id })
+                            });
+                            const result = await res.json();
+                            if (!res.ok) throw new Error(result.error);
+                            toast.success(result.message);
+                            const enrichedMatches = await fetchMatches();
+                            setMatches(enrichedMatches);
+                          } catch (err: any) {
+                            toast.error(err.message || 'Failed to sync results');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <ListOrdered size={10} /> Sync In
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2 border-t border-white/5">
                     <button
                       onClick={async () => {
-                        if (!window.confirm(`Delete "${t.name}"? This will remove all entrants, matches, and bracket data. This cannot be undone.`)) return;
+                        if (!window.confirm(`Delete "${t.name}"?`)) return;
                         try {
                           const res = await fetch(`/api/tournaments/${t.id}`, { method: 'DELETE' });
                           if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
@@ -377,14 +376,14 @@ export default function OperationsDashboard() {
                           toast.error(err.message || 'Failed to delete tournament');
                         }
                       }}
-                      className="py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                      className="flex-1 py-2 text-red-500/50 hover:text-red-500 text-[8px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1"
                     >
                       <Trash2 size={10} /> Delete
                     </button>
                     {t.status === 'active' && (
                       <button
                         onClick={async () => {
-                          if (!window.confirm('Complete tournament and award ranking points to all entrants?')) return;
+                          if (!window.confirm('Complete tournament?')) return;
                           try {
                             const { data: entrantsData } = await supabase
                               .from('tournament_entrants')
@@ -401,15 +400,15 @@ export default function OperationsDashboard() {
                             });
                             const result = await res.json();
                             if (!res.ok) throw new Error(result.error);
-                            toast.success('Tournament completed and points awarded!');
+                            toast.success('Tournament completed!');
                             setTournaments(tournaments.map(item => item.id === t.id ? { ...item, status: 'completed' } : item));
                           } catch (err: any) {
                             toast.error(err.message || 'Failed to complete tournament');
                           }
                         }}
-                        className="py-2 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-lg transition-all"
+                        className="flex-1 py-2 text-primary/50 hover:text-primary text-[8px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1"
                       >
-                        Complete
+                        <CheckCircle size={10} /> Complete
                       </button>
                     )}
                   </div>

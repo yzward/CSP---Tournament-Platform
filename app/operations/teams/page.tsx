@@ -14,6 +14,10 @@ export default function ManageTeams() {
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newTeam, setNewTeam] = useState({ name: '', slug: '', description: '', logo_url: '' });
+  
+  const [isCreatingPlayer, setIsCreatingPlayer] = useState(false);
+  const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global' });
+
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -47,6 +51,36 @@ export default function ManageTeams() {
       toast.error(err.message || 'Failed to create team');
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleCreatePlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingPlayer(true);
+    try {
+      // Generate a placeholder discord_id for unclaimed accounts
+      const unclaimedId = `unclaimed_${Math.random().toString(36).substring(2, 11)}`;
+      
+      const { data, error } = await supabase
+        .from('players')
+        .insert({
+          ...newPlayer,
+          discord_id: unclaimedId,
+          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newPlayer.username}`,
+          ranking_points: 0,
+          club: 'None'
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      setPlayers([...players, data]);
+      setNewPlayer({ display_name: '', username: '', region: 'Global' });
+      toast.success('Unclaimed player created');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create player');
+    } finally {
+      setIsCreatingPlayer(false);
     }
   };
 
@@ -102,58 +136,105 @@ export default function ManageTeams() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
         {/* Create Team Form */}
-        <div className="space-y-6">
-          <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-2">Create New Team</h2>
-          <form onSubmit={handleCreateTeam} className="bg-card border border-border rounded-3xl p-8 space-y-4 shadow-2xl">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Team Name</label>
-              <input
-                type="text"
-                required
-                value={newTeam.name}
-                onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                placeholder="e.g. Team Liquid"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Slug</label>
-              <input
-                type="text"
-                required
-                value={newTeam.slug}
-                onChange={(e) => setNewTeam({ ...newTeam, slug: e.target.value })}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                placeholder="e.g. team-liquid"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Logo URL</label>
-              <input
-                type="text"
-                value={newTeam.logo_url}
-                onChange={(e) => setNewTeam({ ...newTeam, logo_url: e.target.value })}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                placeholder="https://..."
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Description</label>
-              <textarea
-                value={newTeam.description}
-                onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
-                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors min-h-[100px]"
-                placeholder="Team bio..."
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isCreating}
-              className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              <Plus size={16} /> {isCreating ? 'Creating...' : 'Create Team'}
-            </button>
-          </form>
+        <div className="space-y-12">
+          <div className="space-y-6">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-2">Create New Team</h2>
+            <form onSubmit={handleCreateTeam} className="bg-card border border-border rounded-3xl p-8 space-y-4 shadow-2xl">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Team Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newTeam.name}
+                  onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. Team Liquid"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Slug</label>
+                <input
+                  type="text"
+                  required
+                  value={newTeam.slug}
+                  onChange={(e) => setNewTeam({ ...newTeam, slug: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. team-liquid"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Logo URL</label>
+                <input
+                  type="text"
+                  value={newTeam.logo_url}
+                  onChange={(e) => setNewTeam({ ...newTeam, logo_url: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Description</label>
+                <textarea
+                  value={newTeam.description}
+                  onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors min-h-[100px]"
+                  placeholder="Team bio..."
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Plus size={16} /> {isCreating ? 'Creating...' : 'Create Team'}
+              </button>
+            </form>
+          </div>
+
+          <div className="space-y-6">
+            <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground px-2">Quick Add Player</h2>
+            <form onSubmit={handleCreatePlayer} className="bg-card border border-border rounded-3xl p-8 space-y-4 shadow-2xl">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Display Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newPlayer.display_name}
+                  onChange={(e) => setNewPlayer({ ...newPlayer, display_name: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={newPlayer.username}
+                  onChange={(e) => setNewPlayer({ ...newPlayer, username: e.target.value.toLowerCase().replace(/\s+/g, '_') })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. johndoe"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Region</label>
+                <input
+                  type="text"
+                  value={newPlayer.region}
+                  onChange={(e) => setNewPlayer({ ...newPlayer, region: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g. North America"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isCreatingPlayer}
+                className="w-full py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <Plus size={16} /> {isCreatingPlayer ? 'Adding...' : 'Add Player'}
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Teams List & Player Assignment */}
@@ -215,7 +296,16 @@ export default function ManageTeams() {
                         )}
                       </div>
                       <div>
-                        <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                          <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                            player.discord_id?.startsWith('unclaimed_') 
+                              ? 'bg-slate-500/10 text-slate-500' 
+                              : 'bg-green-500/10 text-green-500'
+                          }`}>
+                            {player.discord_id?.startsWith('unclaimed_') ? 'Unclaimed' : 'Claimed'}
+                          </span>
+                        </div>
                         <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">@{player.username}</div>
                       </div>
                     </div>
