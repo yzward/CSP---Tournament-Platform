@@ -7,11 +7,12 @@ import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { parseTournamentId } from '@/lib/challonge';
 
 export default function CreateTournament() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [startggSlug, setStartggSlug] = useState('');
+  const [challongeUrl, setChallongeUrl] = useState('');
   const [userTournaments, setUserTournaments] = useState<any[]>([]);
   const [loadingTournaments, setLoadingTournaments] = useState(true);
   
@@ -20,10 +21,10 @@ export default function CreateTournament() {
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
-        const res = await fetch('/api/startgg/tournaments');
+        const res = await fetch('/api/challonge/tournaments.json?state=open');
         if (res.ok) {
           const data = await res.json();
-          setUserTournaments(data.tournaments || []);
+          setUserTournaments(data.map((item: any) => item.tournament) || []);
         }
       } catch (err) {
         console.error('Failed to fetch user tournaments', err);
@@ -34,33 +35,24 @@ export default function CreateTournament() {
     fetchTournaments();
   }, []);
 
-  const handleImportStartgg = async (e: React.FormEvent) => {
+  const handleImportChallonge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!startggSlug) {
-      toast.error('Please enter a start.gg tournament slug');
+    if (!challongeUrl) {
+      toast.error('Please enter a Challonge tournament URL or ID');
       return;
     }
     
     setLoading(true);
     try {
-      // Clean up the slug if they pasted a full URL (including hub URLs)
-      let slug = startggSlug.trim();
-      const match = slug.match(/tournament\/([^/?#]+)/);
-      if (match) {
-        slug = match[1];
-      }
+      const { id: tournamentId } = parseTournamentId(challongeUrl);
 
-      // Fetch tournament details from our secure API route
-      const response = await fetch('/api/startgg/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug })
-      });
+      // Fetch tournament details from our proxy API route
+      const response = await fetch(`/api/challonge/tournaments/${tournamentId}.json`);
       
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to fetch from start.gg');
+        throw new Error(result.error || 'Failed to fetch from Challonge');
       }
 
       const tournament = result.tournament;
@@ -70,11 +62,16 @@ export default function CreateTournament() {
         .from('tournaments')
         .insert({ 
           name: tournament.name, 
-          held_at: new Date(tournament.startAt * 1000).toISOString().split('T')[0], 
-          format: tournament.events?.[0]?.type === 1 ? 'single_elimination' : 'swiss', // Simple heuristic
+          held_at: new Date(tournament.started_at || tournament.created_at).toISOString().split('T')[0], 
+          format: tournament.tournament_type === 'single elimination' ? 'single_elim' : 
+                  tournament.tournament_type === 'double elimination' ? 'double_elim' : 
+                  tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
+          stage1_format: tournament.tournament_type === 'single elimination' ? 'single_elim' : 
+                         tournament.tournament_type === 'double elimination' ? 'double_elim' : 
+                         tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
           status: 'active',
-          evaroon_id: tournament.slug || tournament.url || tournament.id.toString(),
-          location: tournament.isOnline ? 'Online' : (tournament.city || 'Offline'),
+          evaroon_id: tournament.url,
+          location: 'Offline',
           description: tournament.description || ''
         })
         .select()
@@ -101,7 +98,7 @@ export default function CreateTournament() {
     date: new Date().toISOString().split('T')[0],
     organizationId: '',
     gameId: '1', // Default to 1
-    format: 'single_elimination',
+    format: 'single_elim',
     location: 'Online',
     top_cut_size: '',
     organiser_id: ''
@@ -110,21 +107,10 @@ export default function CreateTournament() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const [orgsRes, playersRes] = await Promise.all([
-          fetch('/api/startgg/organizations'),
-          supabase.from('players').select('id, display_name').order('display_name')
-        ]);
+        const { data: playersData } = await supabase.from('players').select('id, display_name').order('display_name');
 
-        if (orgsRes.ok) {
-          const data = await orgsRes.json();
-          setOrganizations(data.organizations || []);
-          if (data.organizations?.length > 0) {
-            setFormData(prev => ({ ...prev, organizationId: data.organizations[0].id }));
-          }
-        }
-
-        if (playersRes.data) {
-          setPlayers(playersRes.data);
+        if (playersData) {
+          setPlayers(playersData);
         }
       } catch (err) {
         console.error('Failed to fetch initial data', err);
@@ -143,6 +129,7 @@ export default function CreateTournament() {
           name: formData.name,
           held_at: formData.date,
           format: formData.format,
+          stage1_format: formData.format,
           status: 'active',
           evaroon_id: formData.slug,
           location: formData.location,
@@ -178,7 +165,7 @@ export default function CreateTournament() {
             {activeTab === 'import' ? 'Import Tournament' : 'Create Tournament'}
           </h1>
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-            {activeTab === 'import' ? 'Connect with start.gg' : 'Launch on start.gg'}
+            {activeTab === 'import' ? 'Connect with Challonge' : 'Launch on Challonge'}
           </p>
         </div>
       </div>
@@ -209,7 +196,7 @@ export default function CreateTournament() {
         className="bg-card border border-border rounded-3xl p-8 shadow-2xl"
       >
         {activeTab === 'import' ? (
-          <form onSubmit={handleImportStartgg} className="space-y-6">
+          <form onSubmit={handleImportChallonge} className="space-y-6">
             {/* ... existing import form ... */}
             {userTournaments.length > 0 && (
               <div className="space-y-2">
@@ -219,14 +206,14 @@ export default function CreateTournament() {
                     <List size={16} className="text-muted-foreground" />
                   </div>
                   <select
-                    onChange={(e) => setStartggSlug(e.target.value)}
-                    value={userTournaments.find(t => t.slug === startggSlug) ? startggSlug : ''}
+                    onChange={(e) => setChallongeUrl(e.target.value)}
+                    value={userTournaments.find(t => t.url === challongeUrl) ? challongeUrl : ''}
                     className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
                   >
                     <option value="" disabled>Select a tournament...</option>
                     {userTournaments.map((t) => (
-                      <option key={t.id} value={t.slug}>
-                        {t.name} ({new Date(t.startAt * 1000).toLocaleDateString()})
+                      <option key={t.id} value={t.url}>
+                        {t.name} ({new Date(t.started_at || t.created_at).toLocaleDateString()})
                       </option>
                     ))}
                   </select>
@@ -241,7 +228,7 @@ export default function CreateTournament() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start.gg Tournament Slug or URL</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Challonge Tournament URL or ID</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Link2 size={16} className="text-muted-foreground" />
@@ -249,10 +236,10 @@ export default function CreateTournament() {
                 <input
                   type="text"
                   required
-                  value={startggSlug}
-                  onChange={(e) => setStartggSlug(e.target.value)}
+                  value={challongeUrl}
+                  onChange={(e) => setChallongeUrl(e.target.value)}
                   className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                  placeholder="e.g., my-awesome-tournament or https://start.gg/tournament/..."
+                  placeholder="e.g., my_tournament or https://challonge.com/..."
                 />
               </div>
             </div>
@@ -262,7 +249,7 @@ export default function CreateTournament() {
               disabled={loading}
               className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? 'Importing...' : <><Download size={16} /> Import from start.gg</>}
+              {loading ? 'Importing...' : <><Download size={16} /> Import from Challonge</>}
             </button>
           </form>
         ) : (
@@ -304,26 +291,6 @@ export default function CreateTournament() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Organization</label>
-                <select
-                  required
-                  value={formData.organizationId}
-                  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
-                >
-                  {organizations.length === 0 ? (
-                    <option value="" disabled>No organizations found</option>
-                  ) : (
-                    organizations.map(org => (
-                      <option key={org.id} value={org.id}>{org.name}</option>
-                    ))
-                  )}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Format</label>
                 <select
                   required
@@ -331,12 +298,15 @@ export default function CreateTournament() {
                   onChange={(e) => setFormData({ ...formData, format: e.target.value })}
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
                 >
-                  <option value="single_elimination">Single Elimination</option>
-                  <option value="double_elimination">Double Elimination</option>
+                  <option value="single_elim">Single Elimination</option>
+                  <option value="double_elim">Double Elimination</option>
                   <option value="swiss">Swiss</option>
                   <option value="round_robin">Round Robin</option>
                 </select>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Location</label>
                 <input
@@ -346,20 +316,6 @@ export default function CreateTournament() {
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
                   placeholder="e.g., Online or London, UK"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Game (Video Game ID)</label>
-                <input
-                  type="number"
-                  required
-                  value={formData.gameId}
-                  onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                  placeholder="e.g., 1 for Smash, 1386 for Clash Royale"
                 />
               </div>
               <div className="space-y-2">
@@ -377,7 +333,7 @@ export default function CreateTournament() {
               </div>
             </div>
 
-            {formData.format === 'double_elimination' && (
+            {formData.format === 'double_elim' && (
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Top Cut Size</label>
                 <input

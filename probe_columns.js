@@ -14,7 +14,7 @@ async function probeColumn(columnName) {
 
 async function main() {
   const possibleColumns = [
-    'tournament_date', 'event_date', 'scheduled_date', 'time', 'datetime'
+    'format', 'stage1_format', 'stage2_format', 'held_at', 'date', 'start_date'
   ];
   
   const existingColumns = [];

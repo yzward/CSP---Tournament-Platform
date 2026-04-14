@@ -17,6 +17,7 @@ export async function proxy(request: NextRequest) {
     || pathname.startsWith('/tournaments')
     || pathname.startsWith('/meta')
     || pathname.startsWith('/matches')
+    || pathname.startsWith('/api')
 
   if (isPublic) {
     return NextResponse.next()
@@ -58,6 +59,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth/callback|auth/check|login|pending|results|tournaments|meta|matches).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/callback|auth/check|login|pending|results|tournaments|meta|matches|api).*)',
   ],
 }

@@ -291,21 +291,19 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
       });
     }
 
-    // Report to start.gg if linked
+    // Report to Challonge if linked
     if (match.evaroon_match_id) {
-      fetch('/api/startgg/report-set', {
+      fetch('/api/challonge/report-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          matchId,
-          winnerPlayerId: p1Wins ? player1.id : player2.id,
-          score: `${setsWon1}-${setsWon2}`
+          matchId
         }),
       }).then(res => res.json()).then(data => {
-        if (data.success) toast.success('Reported to start.gg');
-        else console.error('Start.gg report failed:', data.error);
+        if (data.success) toast.success('Reported to Challonge');
+        else console.error('Challonge report failed:', data.error);
       }).catch(err => {
-        console.error('Failed to report to start.gg:', err);
+        console.error('Failed to report to Challonge:', err);
       });
     }
 

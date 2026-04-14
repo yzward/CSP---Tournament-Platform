@@ -139,17 +139,28 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
             }`}>
               {tournament.status}
             </span>
+            {tournament.evaroon_id && (
+              <a
+                href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
+              >
+                <ExternalLink size={14} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Challonge</span>
+              </a>
+            )}
           </div>
 
           {/* Register button */}
           {tournament.status === 'active' && tournament.evaroon_id && (
             <a
-              href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
+              href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
             >
-              <ExternalLink size={14} /> Register on start.gg
+              <ExternalLink size={14} /> View on Challonge
             </a>
           )}
         </div>
@@ -336,18 +347,18 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
             <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden min-h-[600px] flex flex-col">
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
                 <Layout className="text-primary opacity-50 mb-6" size={64} />
-                <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">Bracket Hosted on Start.gg</h3>
+                <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">Bracket Hosted on Challonge</h3>
                 <p className="text-muted-foreground text-sm max-w-md mb-8">
-                  This tournament's bracket and matches are managed externally on start.gg.
+                  This tournament's bracket and matches are managed externally on Challonge.
                 </p>
                 {tournament.evaroon_id && (
                   <a
-                    href={tournament.evaroon_id.startsWith('http') ? tournament.evaroon_id : `https://start.gg/${tournament.evaroon_id}`}
+                    href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primary/90 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
                   >
-                    <ExternalLink size={16} /> View Bracket on start.gg
+                    <ExternalLink size={16} /> View Bracket on Challonge
                   </a>
                 )}
               </div>

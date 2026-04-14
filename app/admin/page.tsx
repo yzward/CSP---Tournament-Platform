@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, Users, UserCog, Award, Settings, Check, X, Clock, ExternalLink } from 'lucide-react';
+import { Shield, Users, UserCog, Award, Settings, Check, X, Clock, ExternalLink, Edit3 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -110,6 +110,12 @@ export default function AdminDashboard() {
       description: 'Edit the tournament placement points scale.',
       icon: Award,
       href: '/admin/points',
+    },
+    {
+      title: 'Content Management',
+      description: 'Edit site text, headlines, and feature descriptions.',
+      icon: Edit3,
+      href: '/admin/content',
     },
     {
       title: 'Operations',

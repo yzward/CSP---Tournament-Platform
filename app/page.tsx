@@ -159,6 +159,7 @@ const FEATURES = [
 function LandingContent() {
   const [stats, setStats] = useState({ bladers: 0, tournaments: 0, matches: 0 });
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
+  const [siteContent, setSiteContent] = useState<Record<string, string>>({});
   const [isMounted, setIsMounted] = useState(false);
   const supabase = getSupabase();
   const searchParams = useSearchParams();
@@ -172,17 +173,44 @@ function LandingContent() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [players, tournaments, matches, top] = await Promise.all([
+      const [players, tournaments, matches, top, content] = await Promise.all([
         supabase.from('players').select('id', { count: 'exact', head: true }),
         supabase.from('tournaments').select('id', { count: 'exact', head: true }),
         supabase.from('matches').select('id', { count: 'exact', head: true }),
         supabase.from('players').select('*').order('ranking_points', { ascending: false }).limit(3),
+        supabase.from('site_content').select('id, content'),
       ]);
       setStats({ bladers: players.count || 0, tournaments: tournaments.count || 0, matches: matches.count || 0 });
       setTopPlayers(top.data || []);
+      
+      const contentMap: Record<string, string> = {};
+      content.data?.forEach(item => {
+        contentMap[item.id] = item.content;
+      });
+      setSiteContent(contentMap);
     };
     fetchData();
   }, [supabase]);
+
+  const t = (id: string, fallback: string) => siteContent[id] || fallback;
+
+  const dynamicFeatures = [
+    {
+      icon: Trophy,
+      title: t('home.features.tournament.title', 'Tournament Engine'),
+      body: t('home.features.tournament.body', 'Swiss, Round Robin, Single & Double Elimination. Auto-seeding by ranking. Bracket preview before you generate.'),
+    },
+    {
+      icon: Zap,
+      title: t('home.features.scoring.title', 'Live Scoring'),
+      body: t('home.features.scoring.body', 'Referees grab and score matches in real-time. Every EXT, OVR, BUR, SPN finish logged per beyblade.'),
+    },
+    {
+      icon: TrendingUp,
+      title: t('home.features.rankings.title', 'Global Rankings'),
+      body: t('home.features.rankings.body', 'Points awarded automatically on tournament completion. Head-to-head records and meta stats per part.'),
+    },
+  ];
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -317,14 +345,13 @@ function LandingContent() {
               transition={{ delay: 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.05] tracking-tight mb-6"
             >
-              The home of<br />competitive<br />
-              <span className="text-primary">Beyblade X</span>
+              {t('home.hero.headline', 'The home of competitive Beyblade X')}
             </motion.h1>
 
             {/* Subtitle */}
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
               className="text-white/45 text-sm leading-relaxed mb-8 max-w-md">
-              Tournament management, live match scoring, and global rankings — all in one place. Built for the Spirit Gaming Beyblade X community.
+              {t('home.hero.subtitle', 'Tournament management, live match scoring, and global rankings — all in one place. Built for the Spirit Gaming Beyblade X community.')}
             </motion.p>
 
             {/* CTAs */}
@@ -370,7 +397,7 @@ function LandingContent() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {FEATURES.map((f, i) => (
+            {dynamicFeatures.map((f, i) => (
               <motion.div key={f.title}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}

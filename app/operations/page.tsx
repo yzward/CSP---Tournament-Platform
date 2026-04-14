@@ -211,7 +211,7 @@ export default function OperationsDashboard() {
             href="/operations/tournaments"
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
-            <Plus size={14} /> Import from start.gg
+            <Plus size={14} /> Import from Challonge
           </Link>
         </div>
       </div>
@@ -237,7 +237,7 @@ export default function OperationsDashboard() {
                 <div>
                   <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Create/Import</h3>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Start by importing an existing tournament from start.gg or creating a new one directly here.
+                    Start by importing an existing tournament from Challonge or creating a new one directly here.
                   </p>
                 </div>
               </div>
@@ -253,9 +253,9 @@ export default function OperationsDashboard() {
               <div className="flex gap-4">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary text-[10px] font-black flex items-center justify-center">3</div>
                 <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Sync to start.gg</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Sync to Challonge</h3>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Once your list is ready, sync to start.gg to create the entrants on their platform for bracket management.
+                    Once your list is ready, sync to Challonge to create the entrants on their platform for bracket management.
                   </p>
                 </div>
               </div>
@@ -264,7 +264,7 @@ export default function OperationsDashboard() {
                 <div>
                   <h3 className="text-[10px] font-black uppercase tracking-widest mb-1">Live Scoring</h3>
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Use the Live Scorer to report results. They will automatically push to start.gg and update local rankings.
+                    Use the Live Scorer to report results. They will automatically push to Challonge and update local rankings.
                   </p>
                 </div>
               </div>
@@ -303,12 +303,12 @@ export default function OperationsDashboard() {
                       <Users size={10} /> Entrants
                     </Link>
                     <a
-                      href={t.evaroon_id?.startsWith('http') ? t.evaroon_id : `https://start.gg/${t.evaroon_id}`}
+                      href={t.evaroon_id?.startsWith('http') ? t.evaroon_id : `https://challonge.com/${t.evaroon_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="py-2.5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 border border-white/5"
                     >
-                      <ExternalLink size={10} /> Start.gg
+                      <ExternalLink size={10} /> Challonge
                     </a>
                   </div>
 
@@ -318,7 +318,7 @@ export default function OperationsDashboard() {
                         onClick={async () => {
                           setLoading(true);
                           try {
-                            const res = await fetch('/api/startgg/sync-results', {
+                            const res = await fetch('/api/challonge/sync-tournament', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ tournamentId: t.id })
