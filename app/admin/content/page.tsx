@@ -22,6 +22,20 @@ export default function ContentManagementPage() {
       toast.error('Failed to fetch content');
     } else {
       setContent(data || []);
+      
+      // Ensure common keys exist
+      const commonKeys = [
+        { id: 'rankings.podium.champion_label', content: 'World Champion' }
+      ];
+      
+      for (const key of commonKeys) {
+        if (!data?.find(item => item.id === key.id)) {
+          await supabase.from('site_content').insert(key);
+          // Re-fetch after insert
+          const { data: newData } = await supabase.from('site_content').select('*').order('id');
+          if (newData) setContent(newData);
+        }
+      }
     }
     setLoading(false);
   };

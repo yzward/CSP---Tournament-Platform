@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Users, ArrowLeft, Search, Edit2, Save, X } from 'lucide-react';
+import { Users, ArrowLeft, Search, Edit2, Save, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 
@@ -13,27 +13,42 @@ export default function PlayersAdmin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const pageSize = 20;
   const supabase = getSupabase();
 
   const fetchPlayers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('players')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('ranking_points', { ascending: false });
+
+    if (searchQuery) {
+      query = query.or(`display_name.ilike.%${searchQuery}%,username.ilike.%${searchQuery}%`);
+    }
+
+    const { data, error, count } = await query.range((page - 1) * pageSize, page * pageSize - 1);
 
     if (error) {
       toast.error('Failed to load players');
       console.error(error);
     } else {
       setPlayers(data || []);
+      setTotalCount(count || 0);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchPlayers();
-  }, [supabase]);
+  }, [supabase, page, searchQuery]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(1); // Reset to first page on search
+  };
 
   const handleEdit = (player: any) => {
     setEditingId(player.id);
@@ -67,11 +82,6 @@ export default function PlayersAdmin() {
     }
   };
 
-  const filteredPlayers = players.filter(p => 
-    p.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.username?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Link 
@@ -100,7 +110,7 @@ export default function PlayersAdmin() {
               type="text"
               placeholder="Search players by name or username..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearch}
               className="w-full bg-background border border-border rounded-xl px-4 py-3 pl-12 text-sm font-bold focus:outline-none focus:border-primary transition-colors"
             />
           </div>
@@ -120,10 +130,10 @@ export default function PlayersAdmin() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">Loading players...</td></tr>
-              ) : filteredPlayers.length === 0 ? (
+              ) : players.length === 0 ? (
                 <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No players found.</td></tr>
               ) : (
-                filteredPlayers.map((player) => (
+                players.map((player) => (
                   <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={player.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
                     <td className="p-4">
                       {editingId === player.id ? (
@@ -168,6 +178,30 @@ export default function PlayersAdmin() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="p-4 border-t border-border bg-black/20 flex items-center justify-between">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            Showing {players.length} of {totalCount} players
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1 || loading}
+              className="p-2 bg-background border border-border rounded-lg disabled:opacity-50 hover:border-primary transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-xs font-black italic px-2">Page {page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page * pageSize >= totalCount || loading}
+              className="p-2 bg-background border border-border rounded-lg disabled:opacity-50 hover:border-primary transition-colors"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       </div>
     </div>

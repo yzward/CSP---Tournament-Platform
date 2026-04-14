@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
-import { Trophy, Link2, ChevronLeft, Download, List, Plus } from 'lucide-react';
+import { Trophy, Link2, ChevronLeft, Download, List, Plus, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -197,31 +197,56 @@ export default function CreateTournament() {
       >
         {activeTab === 'import' ? (
           <form onSubmit={handleImportChallonge} className="space-y-6">
-            {/* ... existing import form ... */}
-            {userTournaments.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Select from your tournaments</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <List size={16} className="text-muted-foreground" />
-                  </div>
-                  <select
-                    onChange={(e) => setChallongeUrl(e.target.value)}
-                    value={userTournaments.find(t => t.url === challongeUrl) ? challongeUrl : ''}
-                    className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
-                  >
-                    <option value="" disabled>Select a tournament...</option>
-                    {userTournaments.map((t) => (
-                      <option key={t.id} value={t.url}>
-                        {t.name} ({new Date(t.started_at || t.created_at).toLocaleDateString()})
-                      </option>
-                    ))}
-                  </select>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Select from your open tournaments</label>
+                <button 
+                  type="button"
+                  onClick={async () => {
+                    setLoadingTournaments(true);
+                    try {
+                      const res = await fetch('/api/challonge/tournaments.json?state=open');
+                      if (res.ok) {
+                        const data = await res.json();
+                        setUserTournaments(data.map((item: any) => item.tournament) || []);
+                        toast.success('Tournaments refreshed');
+                      }
+                    } catch (err) {
+                      toast.error('Failed to refresh tournaments');
+                    } finally {
+                      setLoadingTournaments(false);
+                    }
+                  }}
+                  className="text-[8px] font-black uppercase tracking-widest text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+                >
+                  <RefreshCw size={10} className={loadingTournaments ? 'animate-spin' : ''} />
+                  Refresh List
+                </button>
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <List size={16} className="text-muted-foreground" />
+                </div>
+                <select
+                  onChange={(e) => setChallongeUrl(e.target.value)}
+                  value={userTournaments.find(t => t.url === challongeUrl) ? challongeUrl : ''}
+                  className="w-full bg-background border border-border rounded-xl pl-11 pr-10 py-4 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none disabled:opacity-50"
+                  disabled={loadingTournaments}
+                >
+                  <option value="">{loadingTournaments ? 'Loading tournaments...' : userTournaments.length === 0 ? 'No open tournaments found' : 'Select a tournament...'}</option>
+                  {userTournaments.map((t) => (
+                    <option key={t.id} value={t.url}>
+                      {t.name} ({new Date(t.started_at || t.created_at).toLocaleDateString()})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                  <ChevronLeft size={16} className="text-muted-foreground -rotate-90" />
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 py-2">
               <div className="h-px bg-border flex-1"></div>
               <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">OR PASTE URL</span>
               <div className="h-px bg-border flex-1"></div>

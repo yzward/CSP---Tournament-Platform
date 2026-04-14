@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { Tournament, Match, Player } from '@/types';
-import { Trophy, Calendar, Layout, Users, Zap, ChevronLeft, ExternalLink, MapPin, UserPlus, CheckCircle } from 'lucide-react';
+import { Trophy, Calendar, Layout, Users, Zap, ChevronLeft, ExternalLink, MapPin, UserPlus, CheckCircle, RefreshCw, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -134,11 +134,21 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
             <h1 className="text-5xl font-black uppercase tracking-tighter italic">
               {tournament.name}
             </h1>
-            <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-              tournament.status === 'active' ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'
-            }`}>
-              {tournament.status}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg ${
+                tournament.status === 'active' 
+                  ? 'bg-green-500 text-white shadow-green-500/20' 
+                  : 'bg-slate-700 text-slate-300 shadow-black/20'
+              }`}>
+                <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${tournament.status === 'active' ? 'bg-white' : 'bg-slate-400'}`} />
+                {tournament.status}
+              </span>
+              {tournament.is_ranking_tournament && (
+                <span className="px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary/10 text-primary border border-primary/20 shadow-lg shadow-primary/5">
+                  Ranked Event
+                </span>
+              )}
+            </div>
             {tournament.evaroon_id && (
               <a
                 href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
@@ -152,17 +162,84 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
             )}
           </div>
 
-          {/* Register button */}
-          {tournament.status === 'active' && tournament.evaroon_id && (
-            <a
-              href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
-            >
-              <ExternalLink size={14} /> View on Challonge
-            </a>
-          )}
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-4">
+            {tournament.status === 'active' && (
+              <>
+                {currentUser ? (
+                  currentUser.playerId ? (
+                    isRegistered ? (
+                      <div className="flex items-center gap-2 px-6 py-3 bg-green-500/10 text-green-500 text-[10px] font-black uppercase tracking-widest rounded-xl border border-green-500/20">
+                        <CheckCircle size={14} /> Registered
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setIsRegistering(true);
+                          try {
+                            const { data, error } = await supabase
+                              .from('tournament_entrants')
+                              .insert({
+                                tournament_id: id,
+                                player_id: currentUser.playerId,
+                                status: 'registered'
+                              })
+                              .select();
+                            
+                            if (error) throw error;
+                            
+                            setIsRegistered(true);
+                            toast.success('Successfully registered for tournament!');
+                            // Refresh standings
+                            const { data: entrantsRes } = await supabase
+                              .from('tournament_entrants')
+                              .select('*, players(*)')
+                              .eq('tournament_id', id)
+                              .order('placement', { ascending: true, nullsFirst: false });
+                            if (entrantsRes) setStandings(entrantsRes);
+                          } catch (err: any) {
+                            toast.error(`Registration failed: ${err.message}`);
+                          } finally {
+                            setIsRegistering(false);
+                          }
+                        }}
+                        disabled={isRegistering}
+                        className="flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        {isRegistering ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                        Register Now
+                      </button>
+                    )
+                  ) : (
+                    <Link
+                      href="/claim"
+                      className="flex items-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-amber-500/20 transition-all active:scale-95"
+                    >
+                      <Shield size={14} /> Link Profile to Register
+                    </Link>
+                  )
+                ) : (
+                  <button
+                    onClick={() => toast.error('Please sign in to register')}
+                    className="flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95"
+                  >
+                    <UserPlus size={14} /> Sign in to Register
+                  </button>
+                )}
+              </>
+            )}
+
+            {tournament.evaroon_id && (
+              <a
+                href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all active:scale-95"
+              >
+                <ExternalLink size={14} /> View on Challonge
+              </a>
+            )}
+          </div>
         </div>
 
         {(tournament as any).description && (

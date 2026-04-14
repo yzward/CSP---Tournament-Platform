@@ -235,7 +235,7 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                               {entrant.players?.username}
                             </span>
                             {entrant.startgg_entrant_id && (
-                              <span className="text-[8px] font-black text-green-500 uppercase tracking-widest flex items-center gap-1">
+                              <span className="text-[7px] font-black text-green-500 bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-full uppercase tracking-widest flex items-center gap-1 shadow-sm">
                                 <Trophy size={8} /> Synced to Challonge
                               </span>
                             )}

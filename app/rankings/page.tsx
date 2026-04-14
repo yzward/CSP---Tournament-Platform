@@ -13,6 +13,7 @@ export default function RankingsPage() {
   const [search, setSearch] = useState('');
   const [region, setRegion] = useState('All');
   const [page, setPage] = useState(1);
+  const [championLabel, setChampionLabel] = useState('World Champion');
   const pageSize = 25;
 
   const supabase = getSupabase();
@@ -65,6 +66,19 @@ export default function RankingsPage() {
 
     fetchRankings();
   }, [search, region, page, supabase]);
+
+  useEffect(() => {
+    const fetchContent = async () => {
+      const { data } = await supabase
+        .from('site_content')
+        .select('content')
+        .eq('id', 'rankings.podium.champion_label')
+        .single();
+      
+      if (data) setChampionLabel(data.content);
+    };
+    fetchContent();
+  }, [supabase]);
 
   const regions = ['All', 'North America', 'Europe', 'Asia', 'Oceania', 'South America'];
 
@@ -156,7 +170,7 @@ export default function RankingsPage() {
               <div className="mt-16">
                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full mb-4">
                   <Trophy size={12} className="text-amber-500" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">World Champion</span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-amber-500">{championLabel}</span>
                 </div>
                 <h3 className="text-3xl font-black italic uppercase tracking-tight truncate">{players[0].display_name}</h3>
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-6">{players[0].region}</p>
@@ -320,9 +334,15 @@ export default function RankingsPage() {
                         </Link>
                       </td>
                       <td className="px-6 py-6">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground truncate block max-w-[120px]">
+                        <button 
+                          onClick={() => {
+                            setSearch(player.club || '');
+                            setPage(1);
+                          }}
+                          className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors truncate block max-w-[120px] text-left"
+                        >
                           {player.club || 'Independent'}
-                        </span>
+                        </button>
                       </td>
                       <td className="px-6 py-6 text-right">
                         <div className="text-sm font-black italic text-primary">
