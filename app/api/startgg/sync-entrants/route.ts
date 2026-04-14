@@ -6,8 +6,12 @@ export async function POST(request: Request) {
   try {
     const { tournamentId, playerIds } = await request.json();
     
-    if (!tournamentId || !playerIds || !Array.isArray(playerIds)) {
-      return NextResponse.json({ error: 'Invalid request parameters' }, { status: 400 });
+    if (!tournamentId) {
+      return NextResponse.json({ error: 'Tournament ID is required' }, { status: 400 });
+    }
+
+    if (playerIds && !Array.isArray(playerIds)) {
+      return NextResponse.json({ error: 'playerIds must be an array' }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();

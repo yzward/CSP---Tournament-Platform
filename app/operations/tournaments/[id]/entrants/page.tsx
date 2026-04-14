@@ -18,6 +18,7 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [isCreatingPlayer, setIsCreatingPlayer] = useState(false);
   const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global' });
   const supabase = getSupabase();
@@ -140,6 +141,43 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
     }
   };
 
+  const handleSeedByRank = async () => {
+    setSeeding(true);
+    try {
+      // Sort entrants by player ranking points descending
+      const sortedEntrants = [...entrants].sort((a, b) => 
+        (b.players?.ranking_points || 0) - (a.players?.ranking_points || 0)
+      );
+
+      // Update seeds in database
+      const updates = sortedEntrants.map((entrant, index) => ({
+        id: entrant.id,
+        seed: index + 1
+      }));
+
+      // Use a single update if possible, but Supabase doesn't easily support bulk update with different values per row without a custom function
+      // So we'll do it in a loop for now, or better, use a RPC if we had one.
+      // Since we are in a loop, let's at least try to be efficient.
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('tournament_entrants')
+          .update({ seed: update.seed })
+          .eq('id', update.id);
+        if (error) throw error;
+      }
+
+      // Refresh entrants
+      const { data } = await supabase.from('tournament_entrants').select('*, players(*)').eq('tournament_id', id);
+      if (data) setEntrants(data);
+      
+      toast.success('Entrants seeded by rank successfully');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to seed');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const filteredPlayers = allPlayers.filter(p => 
     p.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.username.toLowerCase().includes(searchQuery.toLowerCase())
@@ -168,14 +206,24 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
           </p>
         </div>
 
-        <button
-          onClick={handleSyncToStartGG}
-          disabled={syncing || entrants.length === 0}
-          className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50"
-        >
-          {syncing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Sync All to start.gg
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleSeedByRank}
+            disabled={seeding || entrants.length === 0}
+            className="flex items-center gap-2 px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl transition-all active:scale-95 disabled:opacity-50"
+          >
+            {seeding ? <RefreshCw size={14} className="animate-spin" /> : <Trophy size={14} />}
+            Seed by Rank
+          </button>
+          <button
+            onClick={handleSyncToStartGG}
+            disabled={syncing || entrants.length === 0}
+            className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-xl shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-50"
+          >
+            {syncing ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            Sync All to start.gg
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -189,10 +237,13 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
             <div className="max-h-[600px] overflow-y-auto">
               {entrants.length > 0 ? (
                 <div className="divide-y divide-border/50">
-                  {entrants.map((entrant) => (
-                    <div key={entrant.id} className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
+                    {entrants.sort((a, b) => (a.seed || 999) - (b.seed || 999)).map((entrant) => (
+                      <div key={entrant.id} className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
+                        <div className="flex items-center gap-4">
+                          <div className="w-6 text-center">
+                            <span className="text-[10px] font-black text-primary italic">#{entrant.seed || '-'}</span>
+                          </div>
+                          <div className="w-10 h-10 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
                           {entrant.players?.avatar_url ? (
                             <img src={entrant.players.avatar_url} alt="" className="w-full h-full object-cover" />
                           ) : (

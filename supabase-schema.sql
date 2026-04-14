@@ -168,6 +168,7 @@ CREATE TABLE tournament_entrants (
   tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE,
   player_id UUID REFERENCES players(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'registered',
+  seed INTEGER,
   placement INTEGER,
   points_awarded INTEGER DEFAULT 0,
   UNIQUE(tournament_id, player_id)
