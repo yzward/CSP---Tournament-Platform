@@ -42,7 +42,6 @@ export const GET_TOURNAMENT_QUERY = `
       startAt
       endAt
       isOnline
-      description
       events {
         id
         name
