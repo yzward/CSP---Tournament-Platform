@@ -6,7 +6,7 @@
 
 ## Live URLs
 
-- **App:** https://clashstatspro.vercel.app
+- **App:** https://play.clash.co.nz
 - **GitHub:** https://github.com/yzward/clashstatspro
 
 ---
@@ -399,6 +399,6 @@ All in `migrations.sql` — idempotent, run in Supabase SQL Editor.
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_APP_URL=https://clashstatspro.vercel.app
+NEXT_PUBLIC_APP_URL=https://play.clash.co.nz
 NEXT_PUBLIC_DISCORD_GUILD_ID=1311180569773867020
 ```

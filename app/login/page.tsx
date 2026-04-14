@@ -21,11 +21,16 @@ export default function LoginPage() {
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Validate origin is from AI Studio preview or localhost
+      // Validate origin is from AI Studio preview, localhost, or custom domain
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
-        return;
-      }
+      const isAllowedOrigin = 
+        origin.endsWith('.run.app') || 
+        origin.includes('localhost') || 
+        origin.includes('clash.co.nz') ||
+        origin.includes('vercel.app');
+
+      if (!isAllowedOrigin) return;
+
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         checkUser();
       } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {

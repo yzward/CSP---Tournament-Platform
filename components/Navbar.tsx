@@ -29,7 +29,14 @@ export default function Navbar() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const origin = event.origin;
-      if (!origin.endsWith('.run.app') && !origin.includes('localhost')) return;
+      const isAllowedOrigin = 
+        origin.endsWith('.run.app') || 
+        origin.includes('localhost') || 
+        origin.includes('clash.co.nz') ||
+        origin.includes('vercel.app');
+
+      if (!isAllowedOrigin) return;
+      
       if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
         window.location.reload();
       }
