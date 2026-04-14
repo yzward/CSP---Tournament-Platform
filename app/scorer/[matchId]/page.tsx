@@ -291,6 +291,24 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
       });
     }
 
+    // Report to start.gg if linked
+    if (match.evaroon_match_id) {
+      fetch('/api/startgg/report-set', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId,
+          winnerPlayerId: p1Wins ? player1.id : player2.id,
+          score: `${setsWon1}-${setsWon2}`
+        }),
+      }).then(res => res.json()).then(data => {
+        if (data.success) toast.success('Reported to start.gg');
+        else console.error('Start.gg report failed:', data.error);
+      }).catch(err => {
+        console.error('Failed to report to start.gg:', err);
+      });
+    }
+
     toast.success('Match submitted!');
     router.push('/referee');
   };

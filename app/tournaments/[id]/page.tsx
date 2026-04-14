@@ -24,7 +24,8 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
 
   useEffect(() => {
     const fetchData = async () => {
-      const [{ data: authData }, { data: tData }] = await Promise.all([
+      try {
+        const [{ data: authData }, { data: tData }] = await Promise.all([
         supabase.auth.getUser(),
         (supabase as any).from('tournaments').select('*').eq('id', id).single(),
       ]);
@@ -35,30 +36,53 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
       if (tData) {
         setTournament(tData);
 
+        // Fetch matches and entrants separately
         const [matchRes, entrantsRes] = await Promise.all([
           (supabase as any)
             .from('matches')
-            .select('*, match_players(player_id, total_points, sets_won, winner, players(id, display_name, username, avatar_url))')
+            .select('*, match_players(*)')
             .eq('tournament_id', id)
             .eq('status', 'submitted')
             .order('created_at', { ascending: false }),
           (supabase as any)
             .from('tournament_entrants')
-            .select('*, players(id, display_name, username, avatar_url, ranking_points, club)')
+            .select('*, players(*)')
             .eq('tournament_id', id)
             .order('placement', { ascending: true, nullsFirst: false }),
         ]);
 
         if (matchRes.data) {
-          setMatches(matchRes.data);
-          // Build players map from embedded match_players
-          const pMap: Record<string, Player> = {};
-          for (const m of matchRes.data as any[]) {
-            for (const mp of m.match_players || []) {
-              if (mp.players) pMap[mp.player_id] = mp.players;
-            }
+          const rawMatches = matchRes.data;
+          
+          // Collect all player IDs from matches
+          const playerIds = new Set<string>();
+          rawMatches.forEach((m: any) => {
+            (m.match_players || []).forEach((mp: any) => playerIds.add(mp.player_id));
+          });
+
+          // Fetch player details
+          let pMap: Record<string, Player> = {};
+          if (playerIds.size > 0) {
+            const { data: playersData } = await supabase
+              .from('players')
+              .select('*')
+              .in('id', Array.from(playerIds));
+            
+            playersData?.forEach(p => {
+              pMap[p.id] = p as any;
+            });
           }
           setPlayers(pMap);
+
+          // Enrich matches with player data
+          const enrichedMatches = rawMatches.map((m: any) => ({
+            ...m,
+            match_players: (m.match_players || []).map((mp: any) => ({
+              ...mp,
+              players: pMap[mp.player_id] || null
+            }))
+          }));
+          setMatches(enrichedMatches);
         }
 
         if (entrantsRes.data) {
@@ -79,7 +103,12 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
           }
         }
       }
-      setLoading(false);
+    } catch (err: any) {
+        console.error('Error fetching tournament data:', err);
+        toast.error('Failed to load tournament details');
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchData();
@@ -140,8 +169,8 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
             <Layout size={16} className="text-primary" />
             <span className="text-xs font-black uppercase tracking-widest">
               {tournament.stage_type === 'two_stage'
-                ? `${tournament.stage1_format.replace('_', ' ')} → ${tournament.stage2_format?.replace('_', ' ')}`
-                : tournament.stage1_format.replace('_', ' ')}
+                ? `${(tournament.stage1_format || '').replace('_', ' ')} → ${(tournament.stage2_format || '').replace('_', ' ')}`
+                : (tournament.stage1_format || '').replace('_', ' ')}
             </span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">

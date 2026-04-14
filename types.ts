@@ -13,6 +13,7 @@ export interface Player {
   ranking_points: number;
   email?: string;
   has_password?: boolean;
+  startgg_user_id?: string;
   created_at: string;
 }
 
@@ -205,6 +206,7 @@ export interface TournamentEntrant {
   seed?: number;
   placement?: number;
   points_awarded?: number;
+  startgg_entrant_id?: string;
 }
 
 export interface AccountClaim {

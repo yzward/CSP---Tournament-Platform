@@ -116,3 +116,12 @@ export const REPORT_SET_MUTATION = `
     }
   }
 `;
+
+export const CREATE_ENTRANTS_MUTATION = `
+  mutation CreateEntrants($eventId: ID!, $entrants: [CreateEntrantInput!]!) {
+    createEntrants(eventId: $eventId, entrants: $entrants) {
+      id
+      name
+    }
+  }
+`;

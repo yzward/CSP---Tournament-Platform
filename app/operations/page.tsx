@@ -243,13 +243,61 @@ export default function OperationsDashboard() {
                       <ExternalLink size={10} /> Start.gg
                     </a>
                     {t.status === 'active' && (
-                      <button
-                        onClick={() => toast.info('Syncing from start.gg coming soon!')}
-                        className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
-                        title="Sync results from start.gg"
-                      >
-                        <ListOrdered size={10} /> Sync Data
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              const res = await fetch('/api/startgg/sync-entrants', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  tournamentId: t.id
+                                })
+                              });
+                              const result = await res.json();
+                              if (!res.ok) throw new Error(result.error);
+                              toast.success(result.message);
+                            } catch (err: any) {
+                              toast.error(err.message || 'Failed to sync entrants');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                          title="Sync players from our database to start.gg"
+                        >
+                          <Users size={10} /> Sync to start.gg
+                        </button>
+                        <button
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              const res = await fetch('/api/startgg/sync-results', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  tournamentId: t.id
+                                })
+                              });
+                              const result = await res.json();
+                              if (!res.ok) throw new Error(result.error);
+                              toast.success(result.message);
+                              // Refresh matches
+                              const enrichedMatches = await fetchMatches();
+                              setMatches(enrichedMatches);
+                            } catch (err: any) {
+                              toast.error(err.message || 'Failed to sync results');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          className="py-2 bg-white/5 hover:bg-white/10 text-[8px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-1"
+                          title="Sync results from start.gg"
+                        >
+                          <ListOrdered size={10} /> Sync Results
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="grid grid-cols-1 gap-2">

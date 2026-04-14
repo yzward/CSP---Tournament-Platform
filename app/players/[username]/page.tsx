@@ -26,7 +26,8 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
       setLoading(true);
       const decodedUsername = decodeURIComponent(username);
       
-      const { data: playerData, error } = await supabase
+      // Try exact match on username first
+      let { data: playerData, error } = await supabase
         .from('players')
         .select(`
           *,
@@ -34,11 +35,48 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
           tournament_entrants (
             placement,
             points_awarded,
-            tournaments (id, name, date, is_ranking_tournament)
+            tournaments (id, name, held_at, is_ranking_tournament)
           )
         `)
-        .or(`username.ilike.${decodedUsername},display_name.ilike.${decodedUsername}`)
-        .single();
+        .ilike('username', decodedUsername)
+        .maybeSingle();
+
+      // If not found, try display_name
+      if (!playerData) {
+        const { data: byDisplayName } = await supabase
+          .from('players')
+          .select(`
+            *,
+            player_stats (*),
+            tournament_entrants (
+              placement,
+              points_awarded,
+              tournaments (id, name, held_at, is_ranking_tournament)
+            )
+          `)
+          .ilike('display_name', decodedUsername)
+          .maybeSingle();
+        playerData = byDisplayName;
+      }
+
+      // If still not found, try partial match on username
+      if (!playerData) {
+        const { data: partialMatch } = await supabase
+          .from('players')
+          .select(`
+            *,
+            player_stats (*),
+            tournament_entrants (
+              placement,
+              points_awarded,
+              tournaments (id, name, held_at, is_ranking_tournament)
+            )
+          `)
+          .ilike('username', `%${decodedUsername}%`)
+          .limit(1)
+          .maybeSingle();
+        playerData = partialMatch;
+      }
 
       if (playerData) {
         setPlayer(playerData);
@@ -98,6 +136,14 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [startggUserId, setStartggUserId] = useState('');
+  const [isUpdatingStartGG, setIsUpdatingStartGG] = useState(false);
+
+  useEffect(() => {
+    if (player?.startgg_user_id) {
+      setStartggUserId(player.startgg_user_id);
+    }
+  }, [player]);
 
   useEffect(() => {
     const checkOwnership = async () => {
@@ -133,6 +179,24 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
       toast.error(error.message || 'Failed to update password');
     } finally {
       setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleUpdateStartGG = async () => {
+    if (!player) return;
+    setIsUpdatingStartGG(true);
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({ startgg_user_id: startggUserId })
+        .eq('id', player.id);
+
+      if (error) throw error;
+      toast.success('Start.gg ID updated');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update start.gg ID');
+    } finally {
+      setIsUpdatingStartGG(false);
     }
   };
 
@@ -407,7 +471,7 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
                         </div>
                         <div>
                           <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                            {history.tournaments?.date ? new Date(history.tournaments.date).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                            {history.tournaments?.held_at ? new Date(history.tournaments.held_at).toLocaleDateString('en-NZ', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                           </div>
                           <div className="text-sm font-black uppercase tracking-tight italic">{history.tournaments?.name || 'Unknown Event'}</div>
                         </div>
@@ -417,7 +481,7 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
                           {history.points_awarded > 0 ? `+${history.points_awarded.toLocaleString()}` : '0'}
                         </div>
                         <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
-                          {history.tournaments?.date ? new Date(history.tournaments.date).toLocaleDateString() : 'Unknown Date'}
+                          {history.tournaments?.held_at ? new Date(history.tournaments.held_at).toLocaleDateString() : 'Unknown Date'}
                         </div>
                       </div>
                     </div>
@@ -490,6 +554,36 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
                 </button>
               </form>
             )}
+          </div>
+
+          <div className="bg-card border border-border rounded-3xl p-8 space-y-6">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest mb-2 italic">Start.gg Integration</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
+                Link your start.gg account to sync tournament results and rankings. You can find your User ID in your start.gg profile settings.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start.gg User ID</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={startggUserId}
+                    onChange={(e) => setStartggUserId(e.target.value)}
+                    className="flex-1 bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                    placeholder="e.g. 123456"
+                  />
+                  <button
+                    onClick={handleUpdateStartGG}
+                    disabled={isUpdatingStartGG}
+                    className="px-6 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isUpdatingStartGG ? '...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
