@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
-import { Trophy, Link2, ChevronLeft, Download, List } from 'lucide-react';
+import { Trophy, Link2, ChevronLeft, Download, List, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -91,6 +91,56 @@ export default function CreateTournament() {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'import' | 'create'>('import');
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+    name: '',
+    slug: '',
+    date: new Date().toISOString().split('T')[0],
+    organizationId: '',
+    gameId: '1' // Default to 1
+  });
+
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const res = await fetch('/api/startgg/organizations');
+        if (res.ok) {
+          const data = await res.json();
+          setOrganizations(data.organizations || []);
+          if (data.organizations?.length > 0) {
+            setFormData(prev => ({ ...prev, organizationId: data.organizations[0].id }));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch organizations', err);
+      }
+    };
+    fetchOrgs();
+  }, []);
+
+  const handleCreateTournament = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await fetch('/api/startgg/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+
+      toast.success('Tournament created on start.gg and Clash Stats!');
+      router.push('/operations');
+    } catch (error: any) {
+      toast.error(`Failed to create: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <Link href="/operations" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-white mb-8 transition-colors">
@@ -102,74 +152,181 @@ export default function CreateTournament() {
           <Trophy className="text-primary" size={24} />
         </div>
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-tight italic">Import Tournament</h1>
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Connect with start.gg</p>
+          <h1 className="text-3xl font-black uppercase tracking-tight italic">
+            {activeTab === 'import' ? 'Import Tournament' : 'Create Tournament'}
+          </h1>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+            {activeTab === 'import' ? 'Connect with start.gg' : 'Launch on start.gg'}
+          </p>
         </div>
       </div>
 
+      <div className="flex bg-card border border-border rounded-xl p-1 mb-8">
+        <button
+          onClick={() => setActiveTab('import')}
+          className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'import' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          Import Existing
+        </button>
+        <button
+          onClick={() => setActiveTab('create')}
+          className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'create' ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:text-white'
+          }`}
+        >
+          Create New
+        </button>
+      </div>
+
       <motion.div
+        key={activeTab}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-card border border-border rounded-3xl p-8"
+        className="bg-card border border-border rounded-3xl p-8 shadow-2xl"
       >
-        <form onSubmit={handleImportStartgg} className="space-y-6">
-          {userTournaments.length > 0 && (
+        {activeTab === 'import' ? (
+          <form onSubmit={handleImportStartgg} className="space-y-6">
+            {/* ... existing import form ... */}
+            {userTournaments.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Select from your tournaments</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <List size={16} className="text-muted-foreground" />
+                  </div>
+                  <select
+                    onChange={(e) => setStartggSlug(e.target.value)}
+                    value={userTournaments.find(t => t.slug === startggSlug) ? startggSlug : ''}
+                    className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
+                  >
+                    <option value="" disabled>Select a tournament...</option>
+                    {userTournaments.map((t) => (
+                      <option key={t.id} value={t.slug}>
+                        {t.name} ({new Date(t.startAt * 1000).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4">
+              <div className="h-px bg-border flex-1"></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">OR PASTE URL</span>
+              <div className="h-px bg-border flex-1"></div>
+            </div>
+
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Select from your tournaments</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start.gg Tournament Slug or URL</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <List size={16} className="text-muted-foreground" />
+                  <Link2 size={16} className="text-muted-foreground" />
                 </div>
-                <select
+                <input
+                  type="text"
+                  required
+                  value={startggSlug}
                   onChange={(e) => setStartggSlug(e.target.value)}
-                  value={userTournaments.find(t => t.slug === startggSlug) ? startggSlug : ''}
-                  className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
+                  className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g., my-awesome-tournament or https://start.gg/tournament/..."
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? 'Importing...' : <><Download size={16} /> Import from start.gg</>}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleCreateTournament} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Tournament Name</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g., Summer Clash 2024"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">URL Slug</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                  placeholder="e.g., summer-clash-2024"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start Date</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Organization</label>
+                <select
+                  required
+                  value={formData.organizationId}
+                  onChange={(e) => setFormData({ ...formData, organizationId: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors appearance-none"
                 >
-                  <option value="" disabled>Select a tournament...</option>
-                  {userTournaments.map((t) => (
-                    <option key={t.id} value={t.slug}>
-                      {t.name} ({new Date(t.startAt * 1000).toLocaleDateString()})
-                    </option>
-                  ))}
+                  {organizations.length === 0 ? (
+                    <option value="" disabled>No organizations found</option>
+                  ) : (
+                    organizations.map(org => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))
+                  )}
                 </select>
+                {organizations.length === 0 && (
+                  <p className="text-[8px] text-amber-500 font-bold uppercase tracking-widest mt-1">
+                    You need to be an admin of an organization on start.gg
+                  </p>
+                )}
               </div>
             </div>
-          )}
 
-          <div className="flex items-center gap-4">
-            <div className="h-px bg-border flex-1"></div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">OR PASTE URL</span>
-            <div className="h-px bg-border flex-1"></div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start.gg Tournament Slug or URL</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Link2 size={16} className="text-muted-foreground" />
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Game (Video Game ID)</label>
               <input
-                type="text"
+                type="number"
                 required
-                value={startggSlug}
-                onChange={(e) => setStartggSlug(e.target.value)}
-                className="w-full bg-background border border-border rounded-xl pl-11 pr-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
-                placeholder="e.g., my-awesome-tournament or https://start.gg/tournament/..."
+                value={formData.gameId}
+                onChange={(e) => setFormData({ ...formData, gameId: e.target.value })}
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                placeholder="e.g., 1 for Smash, 1386 for Clash Royale"
               />
+              <p className="text-[8px] text-muted-foreground">Find game IDs on start.gg or leave as 1 for now.</p>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-2 ml-1">
-              We will import the tournament details and automatically sync the bracket and matches.
-            </p>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {loading ? 'Importing...' : <><Download size={16} /> Import from start.gg</>}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading || organizations.length === 0}
+              className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {loading ? 'Creating...' : <><Plus size={16} /> Create on start.gg & Clash Stats</>}
+            </button>
+          </form>
+        )}
       </motion.div>
     </div>
   );
