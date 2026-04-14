@@ -184,6 +184,7 @@ export default function Navbar() {
     { name: 'Home', href: '/', icon: Home, show: true },
     { name: 'Rankings', href: '/rankings', icon: Trophy, show: true },
     { name: 'Tournaments', href: '/tournaments', icon: Layout, show: true },
+    { name: 'Teams', href: '/teams', icon: Users, show: true },
     { name: 'Meta', href: '/meta', icon: Search, show: true },
     { name: 'Ref Dashboard', href: '/referee', icon: Zap, show: isRef },
     { name: 'Operations', href: '/operations', icon: Settings, show: isOps },

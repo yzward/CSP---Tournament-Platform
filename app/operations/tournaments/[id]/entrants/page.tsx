@@ -241,9 +241,33 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                   <p className="text-center py-8 text-muted-foreground text-[10px] font-bold uppercase tracking-widest">No players found</p>
                 )
               ) : (
-                <div className="text-center py-12 space-y-4">
-                  <Search size={32} className="mx-auto text-muted-foreground/20" />
-                  <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest">Search for players to add them</p>
+                <div className="space-y-3">
+                  <p className="text-[8px] font-black uppercase tracking-widest text-muted-foreground px-2">Top Ranked Players</p>
+                  {allPlayers.slice(0, 10).map((player) => (
+                    <button
+                      key={player.id}
+                      onClick={() => handleAddPlayer(player)}
+                      disabled={entrants.some(e => e.player_id === player.id)}
+                      className="w-full p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-between transition-all group disabled:opacity-50 disabled:hover:bg-white/5"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
+                          {player.avatar_url ? (
+                            <img src={player.avatar_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Users size={12} className="text-primary" />
+                          )}
+                        </div>
+                        <div className="text-left">
+                          <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                          <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
+                        </div>
+                      </div>
+                      <div className="p-2 bg-primary/10 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-all">
+                        <Plus size={14} />
+                      </div>
+                    </button>
+                  ))}
                 </div>
               )}
             </div>

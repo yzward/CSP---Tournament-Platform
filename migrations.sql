@@ -11,6 +11,25 @@ ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organiser_id UUID REFERENCES pl
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS top_cut_size INT;
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS discord_webhook_url TEXT;
 
+-- Teams expansion
+CREATE TABLE IF NOT EXISTS teams (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  logo_url TEXT,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE players ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
+
+-- RLS for teams
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "public_read_teams" ON teams;
+CREATE POLICY "public_read_teams" ON teams FOR SELECT USING (true);
+DROP POLICY IF EXISTS "authenticated_write_teams" ON teams;
+CREATE POLICY "authenticated_write_teams" ON teams FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
 -- ============================================================
 -- player_stats — refresh function + triggers
 -- Real schema (confirmed):

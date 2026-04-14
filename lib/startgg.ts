@@ -40,10 +40,17 @@ export const GET_TOURNAMENT_QUERY = `
       url
       city
       startAt
+      endAt
+      isOnline
+      description
       events {
         id
         name
         numEntrants
+        type
+        videogame {
+          id
+        }
         phases {
           id
           name

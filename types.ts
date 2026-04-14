@@ -14,6 +14,16 @@ export interface Player {
   email?: string;
   has_password?: boolean;
   startgg_user_id?: string;
+  team_id?: string;
+  created_at: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url?: string;
+  description?: string;
   created_at: string;
 }
 

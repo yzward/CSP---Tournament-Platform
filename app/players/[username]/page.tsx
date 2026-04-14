@@ -138,10 +138,15 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [startggUserId, setStartggUserId] = useState('');
   const [isUpdatingStartGG, setIsUpdatingStartGG] = useState(false);
+  const [region, setRegion] = useState('');
+  const [isUpdatingRegion, setIsUpdatingRegion] = useState(false);
 
   useEffect(() => {
     if (player?.startgg_user_id) {
       setStartggUserId(player.startgg_user_id);
+    }
+    if (player?.region) {
+      setRegion(player.region);
     }
   }, [player]);
 
@@ -197,6 +202,25 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
       toast.error(error.message || 'Failed to update start.gg ID');
     } finally {
       setIsUpdatingStartGG(false);
+    }
+  };
+
+  const handleUpdateRegion = async () => {
+    if (!player) return;
+    setIsUpdatingRegion(true);
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({ region })
+        .eq('id', player.id);
+
+      if (error) throw error;
+      toast.success('Region updated');
+      setPlayer({ ...player, region });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update region');
+    } finally {
+      setIsUpdatingRegion(false);
     }
   };
 
@@ -554,6 +578,36 @@ export default function PlayerProfile({ params }: { params: Promise<{ username: 
                 </button>
               </form>
             )}
+          </div>
+
+          <div className="bg-card border border-border rounded-3xl p-8 space-y-6">
+            <div>
+              <h3 className="text-xs font-black uppercase tracking-widest mb-2 italic">Profile Information</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-relaxed">
+                Update your public profile details.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Region</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="flex-1 bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                    placeholder="e.g. North America, Europe"
+                  />
+                  <button
+                    onClick={handleUpdateRegion}
+                    disabled={isUpdatingRegion}
+                    className="px-6 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    {isUpdatingRegion ? '...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="bg-card border border-border rounded-3xl p-8 space-y-6">

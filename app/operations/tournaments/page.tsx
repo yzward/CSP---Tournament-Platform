@@ -71,10 +71,11 @@ export default function CreateTournament() {
         .insert({ 
           name: tournament.name, 
           held_at: new Date(tournament.startAt * 1000).toISOString().split('T')[0], 
-          format: 'swiss',
+          format: tournament.events?.[0]?.type === 1 ? 'single_elimination' : 'swiss', // Simple heuristic
           status: 'active',
-          evaroon_id: tournament.slug || tournament.url || tournament.id.toString(), // Store the start.gg slug/url
-          location: tournament.city || ''
+          evaroon_id: tournament.slug || tournament.url || tournament.id.toString(),
+          location: tournament.isOnline ? 'Online' : (tournament.city || 'Offline'),
+          description: tournament.description || ''
         })
         .select()
         .single();

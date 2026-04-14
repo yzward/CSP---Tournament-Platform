@@ -202,6 +202,12 @@ export default function OperationsDashboard() {
             </button>
           </div>
           <Link
+            href="/operations/teams"
+            className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
+          >
+            <Users size={14} /> Manage Teams
+          </Link>
+          <Link
             href="/operations/tournaments"
             className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
