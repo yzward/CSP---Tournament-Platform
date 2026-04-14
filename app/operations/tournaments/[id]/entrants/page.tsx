@@ -196,7 +196,16 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                           )}
                         </div>
                         <div>
-                          <div className="text-sm font-black uppercase tracking-tight italic">{entrant.players?.display_name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-black uppercase tracking-tight italic">{entrant.players?.display_name}</div>
+                            <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                              (!entrant.players?.discord_id || entrant.players?.discord_id.startsWith('unclaimed_') || entrant.players?.discord_id.includes('@'))
+                                ? 'bg-slate-500/10 text-slate-500' 
+                                : 'bg-green-500/10 text-green-500'
+                            }`}>
+                              {(!entrant.players?.discord_id || entrant.players?.discord_id.startsWith('unclaimed_') || entrant.players?.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
+                            </span>
+                          </div>
                           <div className="flex items-center gap-2">
                             <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">
                               {entrant.players?.username}
@@ -269,7 +278,16 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                             )}
                           </div>
                           <div className="text-left">
-                            <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                              <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                                (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@'))
+                                  ? 'bg-slate-500/10 text-slate-500' 
+                                  : 'bg-green-500/10 text-green-500'
+                              }`}>
+                                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
+                              </span>
+                            </div>
                             <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
                           </div>
                         </div>
@@ -300,7 +318,16 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
                             )}
                           </div>
                           <div className="text-left">
-                            <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
+                              <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
+                                (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@'))
+                                  ? 'bg-slate-500/10 text-slate-500' 
+                                  : 'bg-green-500/10 text-green-500'
+                              }`}>
+                                {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
+                              </span>
+                            </div>
                             <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">{player.username}</div>
                           </div>
                         </div>

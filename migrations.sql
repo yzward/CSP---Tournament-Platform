@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS teams (
 
 ALTER TABLE players ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
 
+ALTER TABLE tournament_entrants ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'registered';
+
 -- RLS for teams
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "public_read_teams" ON teams;

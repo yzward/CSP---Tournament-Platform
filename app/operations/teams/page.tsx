@@ -16,7 +16,7 @@ export default function ManageTeams() {
   const [newTeam, setNewTeam] = useState({ name: '', slug: '', description: '', logo_url: '' });
   
   const [isCreatingPlayer, setIsCreatingPlayer] = useState(false);
-  const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global' });
+  const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global', team_id: '' });
 
   const supabase = getSupabase();
 
@@ -68,14 +68,15 @@ export default function ManageTeams() {
           discord_id: unclaimedId,
           avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newPlayer.username}`,
           ranking_points: 0,
-          club: 'None'
+          club: 'None',
+          team_id: newPlayer.team_id || null
         })
         .select()
         .single();
       
       if (error) throw error;
       setPlayers([...players, data]);
-      setNewPlayer({ display_name: '', username: '', region: 'Global' });
+      setNewPlayer({ display_name: '', username: '', region: 'Global', team_id: '' });
       toast.success('Unclaimed player created');
     } catch (err: any) {
       toast.error(err.message || 'Failed to create player');
@@ -226,6 +227,19 @@ export default function ManageTeams() {
                   placeholder="e.g. North America"
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Initial Team</label>
+                <select
+                  value={newPlayer.team_id}
+                  onChange={(e) => setNewPlayer({ ...newPlayer, team_id: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-xs font-bold focus:outline-none focus:border-primary transition-colors"
+                >
+                  <option value="">No Team</option>
+                  {teams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
               <button
                 type="submit"
                 disabled={isCreatingPlayer}
@@ -299,11 +313,11 @@ export default function ManageTeams() {
                         <div className="flex items-center gap-2">
                           <div className="text-xs font-black uppercase tracking-tight italic">{player.display_name}</div>
                           <span className={`text-[6px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full ${
-                            player.discord_id?.startsWith('unclaimed_') 
+                            (!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@'))
                               ? 'bg-slate-500/10 text-slate-500' 
                               : 'bg-green-500/10 text-green-500'
                           }`}>
-                            {player.discord_id?.startsWith('unclaimed_') ? 'Unclaimed' : 'Claimed'}
+                            {(!player.discord_id || player.discord_id.startsWith('unclaimed_') || player.discord_id.includes('@')) ? 'Unclaimed' : 'Claimed'}
                           </span>
                         </div>
                         <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">@{player.username}</div>

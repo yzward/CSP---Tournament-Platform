@@ -9,6 +9,7 @@ CREATE TABLE players (
   club TEXT,
   ranking_points INTEGER DEFAULT 0,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -166,6 +167,7 @@ CREATE TABLE tournament_entrants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tournament_id UUID REFERENCES tournaments(id) ON DELETE CASCADE,
   player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'registered',
   placement INTEGER,
   points_awarded INTEGER DEFAULT 0,
   UNIQUE(tournament_id, player_id)
