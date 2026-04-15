@@ -57,11 +57,12 @@ export default function RefereeDashboard() {
   }, [supabase]);
 
   const fetchData = async (playerId: string) => {
-    // Fetch active tournaments
+    // Fetch active tournaments, newest first
     const { data: activeTournaments } = await supabase
       .from('tournaments')
       .select('id, name, status')
-      .eq('status', 'active');
+      .eq('status', 'active')
+      .order('held_at', { ascending: false });
 
     const tMap: Record<string, { name: string; status: string }> = {};
     const tIds: string[] = [];
