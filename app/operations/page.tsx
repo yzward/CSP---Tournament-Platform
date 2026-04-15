@@ -17,6 +17,8 @@ export default function OperationsDashboard() {
   const [newCourtName, setNewCourtName] = useState('');
   const [selectedTournament, setSelectedTournament] = useState('');
   const [challongeStatuses, setChallongeStatuses] = useState<Record<string, { status: string; started_at: string | null }>>({});
+  const [syncInLoading, setSyncInLoading] = useState<string | null>(null);
+  const [syncOutLoading, setSyncOutLoading] = useState<string | null>(null);
   const supabase = getSupabase();
 
   const fetchMatches = async () => {
@@ -336,9 +338,9 @@ export default function OperationsDashboard() {
                   {t.status === 'active' && (
                     <div className="grid grid-cols-2 gap-2">
                       <button
-                        disabled={loading}
+                        disabled={!!syncInLoading || !!syncOutLoading}
                         onClick={async () => {
-                          setLoading(true);
+                          setSyncInLoading(t.id);
                           try {
                             const res = await fetch('/api/challonge/sync-tournament', {
                               method: 'POST',
@@ -353,19 +355,19 @@ export default function OperationsDashboard() {
                           } catch (err: any) {
                             toast.error(err.message || 'Failed to sync results');
                           } finally {
-                            setLoading(false);
+                            setSyncInLoading(null);
                           }
                         }}
                         className="py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                       >
-                        <ArrowDownCircle size={10} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Syncing...' : 'Sync In'}
+                        <ArrowDownCircle size={10} className={syncInLoading === t.id ? 'animate-spin' : ''} />
+                        {syncInLoading === t.id ? 'Syncing...' : 'Sync In'}
                       </button>
 
                       <button
-                        disabled={loading || (challongeStatuses[t.id]?.status !== 'pending' && !!challongeStatuses[t.id]?.started_at)}
+                        disabled={!!syncInLoading || !!syncOutLoading || (challongeStatuses[t.id]?.status !== 'pending' && !!challongeStatuses[t.id]?.started_at)}
                         onClick={async () => {
-                          setLoading(true);
+                          setSyncOutLoading(t.id);
                           try {
                             const res = await fetch('/api/challonge/sync-out', {
                               method: 'POST',
@@ -378,14 +380,14 @@ export default function OperationsDashboard() {
                           } catch (err: any) {
                             toast.error(err.message || 'Failed to sync out');
                           } finally {
-                            setLoading(false);
+                            setSyncOutLoading(null);
                           }
                         }}
                         className="py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                         title={challongeStatuses[t.id]?.status !== 'pending' && !!challongeStatuses[t.id]?.started_at ? 'Tournament has started, cannot sync out new entrants' : 'Sync local entrants to Challonge'}
                       >
-                        <ArrowUpCircle size={10} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Syncing...' : 'Sync Out'}
+                        <ArrowUpCircle size={10} className={syncOutLoading === t.id ? 'animate-spin' : ''} />
+                        {syncOutLoading === t.id ? 'Syncing...' : 'Sync Out'}
                       </button>
                     </div>
                   )}
