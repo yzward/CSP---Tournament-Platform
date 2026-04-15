@@ -34,9 +34,17 @@ export default function ContentManagementPage() {
 
       setContent(data || []);
       
-      // Ensure common keys exist
+      // Ensure common keys exist — these are all content used across the site
       const commonKeys = [
-        { id: 'rankings.podium.champion_label', content: 'World Champion' }
+        { id: 'rankings.podium.champion_label',      content: 'World Champion' },
+        { id: 'home.hero.headline',                  content: 'The home of competitive Beyblade X' },
+        { id: 'home.hero.subtitle',                  content: 'Tournament management, live match scoring, and global rankings — all in one place. Built for the Spirit Gaming Beyblade X community.' },
+        { id: 'home.features.tournament.title',      content: 'Tournament Engine' },
+        { id: 'home.features.tournament.body',       content: 'Swiss, Round Robin, Single & Double Elimination. Auto-seeding by ranking. Bracket preview before you generate.' },
+        { id: 'home.features.scoring.title',         content: 'Live Scoring' },
+        { id: 'home.features.scoring.body',          content: 'Referees grab and score matches in real-time. Every EXT, OVR, BUR, SPN finish logged per beyblade.' },
+        { id: 'home.features.rankings.title',        content: 'Global Rankings' },
+        { id: 'home.features.rankings.body',         content: 'Points awarded automatically on tournament completion. Head-to-head records and meta stats per part.' },
       ];
       
       let needsRefresh = false;

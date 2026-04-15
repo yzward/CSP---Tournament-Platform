@@ -11,10 +11,13 @@ export async function proxy(request: NextRequest) {
     '/pending',
   ]
 
-  const isPublic = publicPaths.some(path =>
-    pathname.startsWith(path)
-  ) || pathname.startsWith('/results')
+  const isPublic = pathname === '/'
+    || publicPaths.some(path => pathname.startsWith(path))
+    || pathname.startsWith('/results')
     || pathname.startsWith('/tournaments')
+    || pathname.startsWith('/rankings')
+    || pathname.startsWith('/players')
+    || pathname.startsWith('/teams')
     || pathname.startsWith('/meta')
     || pathname.startsWith('/matches')
     || pathname.startsWith('/api')
@@ -59,6 +62,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|auth/callback|auth/check|login|pending|results|tournaments|meta|matches|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth/callback|auth/check|login|pending|results|tournaments|rankings|players|teams|meta|matches|api).*)',
   ],
 }
