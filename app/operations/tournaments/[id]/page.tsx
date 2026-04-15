@@ -120,6 +120,10 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
       toast.success(result.message);
+      if (result.warnings?.length > 0) {
+        console.warn('[Sync warnings]', result.warnings);
+        toast.warning(`Sync completed with ${result.warnings.length} warning(s) — check browser console for details`);
+      }
       const mRes = await fetchMatches();
       setMatches(mRes);
     } catch (err: any) {

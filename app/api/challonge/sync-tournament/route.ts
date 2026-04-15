@@ -292,10 +292,16 @@ export async function POST(req: Request) {
         for (const mp of desired) {
           const existing = (existingMPs || []).find(ep => ep.player_id === mp.player_id);
           if (existing) {
-            await supabase.from('match_players').update(mp).eq('id', existing.id);
+            const { error: upErr } = await supabase.from('match_players').update(mp).eq('id', existing.id);
+            if (upErr) errors.push(`match_players UPDATE failed (match ${m.id}, player ${mp.player_id}): ${upErr.message}`);
           } else {
-            await supabase.from('match_players').insert(mp);
+            const { error: inErr } = await supabase.from('match_players').insert(mp);
+            if (inErr) errors.push(`match_players INSERT failed (match ${m.id}, player ${mp.player_id}): ${inErr.message}`);
           }
+        }
+
+        if (desired.length === 0 && (m.player1_id || m.player2_id)) {
+          errors.push(`Match ${m.id}: player1_id=${m.player1_id} player2_id=${m.player2_id} not found in entrantMap (map size: ${entrantMap.size})`);
         }
 
         syncedCount++;
@@ -308,7 +314,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: `Synced ${participants.length} participants and ${syncedCount} matches from Challonge`,
-      ...(errors.length > 0 && { warnings: errors }),
+      warnings: errors,
     });
 
   } catch (error: any) {
