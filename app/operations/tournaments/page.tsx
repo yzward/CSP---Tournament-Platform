@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
-import { Trophy, Link2, ChevronLeft, Download, List, RefreshCw, User } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Trophy, Link2, ChevronLeft, Download, List, RefreshCw, User, CheckCircle, XCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -12,6 +12,12 @@ import { parseTournamentId } from '@/lib/challonge';
 export default function ImportTournament() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [importSteps, setImportSteps] = useState<{label: string, status: 'pending' | 'loading' | 'success' | 'error'}[]>([
+    { label: 'Fetch Challonge Data', status: 'pending' },
+    { label: 'Initialize Tournament', status: 'pending' },
+    { label: 'Sync Participants', status: 'pending' },
+    { label: 'Generate Match List', status: 'pending' }
+  ]);
   const [challongeUrl, setChallongeUrl] = useState('');
   const [userTournaments, setUserTournaments] = useState<any[]>([]);
   const [loadingTournaments, setLoadingTournaments] = useState(true);
@@ -19,6 +25,10 @@ export default function ImportTournament() {
   const [players, setPlayers] = useState<any[]>([]);
   
   const supabase = getSupabase();
+
+  const updateStep = (index: number, status: 'pending' | 'loading' | 'success' | 'error') => {
+    setImportSteps(prev => prev.map((step, i) => i === index ? { ...step, status } : step));
+  };
 
   useEffect(() => {
     const fetchTournaments = async () => {
@@ -58,22 +68,30 @@ export default function ImportTournament() {
     }
     
     setLoading(true);
+    setImportSteps([
+      { label: 'Fetch Challonge Data', status: 'loading' },
+      { label: 'Initialize Tournament', status: 'pending' },
+      { label: 'Sync Participants', status: 'pending' },
+      { label: 'Generate Match List', status: 'pending' }
+    ]);
+
     try {
       const { id: tournamentId } = parseTournamentId(challongeUrl);
 
-      // Fetch tournament details from our proxy API route
+      // Step 1: Fetch
       const response = await fetch(`/api/challonge/tournaments/${tournamentId}.json`);
-      
       const result = await response.json();
       
       if (!response.ok) {
-        const errorMessage = result.error || (result.errors && result.errors.join(', ')) || 'Failed to fetch from Challonge';
-        throw new Error(errorMessage);
+        updateStep(0, 'error');
+        throw new Error(result.error || 'Failed to fetch from Challonge');
       }
+      updateStep(0, 'success');
+      updateStep(1, 'loading');
 
       const tournament = result.tournament;
 
-      // Create the tournament in our database
+      // Step 2: Create
       const { data: newTournament, error } = await (supabase as any)
         .from('tournaments')
         .insert({ 
@@ -94,12 +112,34 @@ export default function ImportTournament() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        updateStep(1, 'error');
+        throw error;
+      }
+      updateStep(1, 'success');
+      updateStep(2, 'loading');
 
-      toast.success('Tournament imported successfully!');
-      router.push('/operations');
+      // Step 3 & 4: Sync
+      const syncRes = await fetch('/api/challonge/sync-tournament', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tournamentId: newTournament.id })
+      });
+
+      if (!syncRes.ok) {
+        updateStep(2, 'error');
+        updateStep(3, 'error');
+        const syncData = await syncRes.json();
+        throw new Error(syncData.error || 'Sync failed');
+      }
+      
+      updateStep(2, 'success');
+      updateStep(3, 'success');
+
+      toast.success('Tournament imported and synced successfully!');
+      setTimeout(() => router.push('/operations'), 1500);
     } catch (error: any) {
-      toast.error(`Failed to import: ${error.message}`);
+      toast.error(`Import failed: ${error.message}`);
       console.error(error);
     } finally {
       setLoading(false);
@@ -231,8 +271,42 @@ export default function ImportTournament() {
             disabled={loading}
             className="w-full py-4 bg-primary text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? 'Importing...' : <><Download size={16} /> Import from Challonge</>}
+            {loading ? (
+              <div className="flex items-center gap-2">
+                <RefreshCw size={16} className="animate-spin" />
+                <span>Processing Import...</span>
+              </div>
+            ) : (
+              <><Download size={16} /> Import from Challonge</>
+            )}
           </button>
+
+          <AnimatePresence>
+            {loading && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="pt-6 space-y-3"
+              >
+                {importSteps.map((step, i) => (
+                  <div key={i} className="flex items-center justify-between px-4 py-3 bg-background border border-border rounded-xl">
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${
+                      step.status === 'loading' ? 'text-primary' : 
+                      step.status === 'success' ? 'text-green-500' : 
+                      step.status === 'error' ? 'text-red-500' : 'text-muted-foreground'
+                    }`}>
+                      {step.label}
+                    </span>
+                    {step.status === 'loading' && <RefreshCw size={12} className="animate-spin text-primary" />}
+                    {step.status === 'success' && <CheckCircle size={12} className="text-green-500" />}
+                    {step.status === 'error' && <XCircle size={12} className="text-red-500" />}
+                    {step.status === 'pending' && <div className="w-3 h-3 rounded-full border-2 border-border" />}
+                  </div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </form>
       </motion.div>
     </div>

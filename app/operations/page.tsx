@@ -315,6 +315,7 @@ export default function OperationsDashboard() {
                   {t.status === 'active' && (
                     <div className="grid grid-cols-1 gap-2">
                       <button
+                        disabled={loading}
                         onClick={async () => {
                           setLoading(true);
                           try {
@@ -334,9 +335,10 @@ export default function OperationsDashboard() {
                             setLoading(false);
                           }
                         }}
-                        className="py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
+                        className="py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                       >
-                        <ListOrdered size={10} /> Sync In
+                        <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+                        {loading ? 'Syncing...' : 'Sync In'}
                       </button>
                     </div>
                   )}
