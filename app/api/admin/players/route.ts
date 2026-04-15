@@ -47,10 +47,9 @@ export async function PUT(request: Request) {
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('roles(name)')
-      .eq('player_id', player.id)
-      .single();
+      .eq('player_id', player.id);
 
-    const isAdmin = (roleData?.roles as any)?.name === 'Admin';
+    const isAdmin = roleData?.some((r: any) => r.roles?.name === 'Admin');
     if (!isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

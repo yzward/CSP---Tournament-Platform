@@ -120,12 +120,18 @@ export default function RefereeDashboard() {
     setLoading(false);
   };
 
-  // Real-time: refresh when any match in active tournaments changes
+  // Real-time: refresh when any match or participant data changes
   useEffect(() => {
     if (!currentPlayerId) return;
     const channel = supabase
-      .channel('referee-matches')
+      .channel('referee-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, () => {
+        fetchData(currentPlayerId);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'match_players' }, () => {
+        fetchData(currentPlayerId);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_entrants' }, () => {
         fetchData(currentPlayerId);
       })
       .subscribe();

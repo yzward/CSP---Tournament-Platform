@@ -334,19 +334,17 @@ export default function OperationsDashboard() {
 
                   <div className="grid grid-cols-2 gap-2">
                     <Link
-                      href={`/operations/tournaments/${t.id}/entrants`}
+                      href={`/operations/tournaments/${t.id}`}
                       className="py-2.5 bg-primary/10 hover:bg-primary/20 text-primary text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Settings size={10} /> Dashboard
+                    </Link>
+                    <Link
+                      href={`/operations/tournaments/${t.id}/entrants`}
+                      className="py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
                     >
                       <Users size={10} /> Entrants
                     </Link>
-                    <a
-                      href={t.evaroon_id?.startsWith('http') ? t.evaroon_id : `https://challonge.com/${t.evaroon_id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 border border-white/5"
-                    >
-                      <ExternalLink size={10} /> Challonge
-                    </a>
                   </div>
 
                   {t.status === 'active' && (

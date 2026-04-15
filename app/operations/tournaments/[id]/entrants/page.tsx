@@ -20,6 +20,8 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
   const [seeding, setSeeding] = useState(false);
   const [isCreatingPlayer, setIsCreatingPlayer] = useState(false);
   const [newPlayer, setNewPlayer] = useState({ display_name: '', username: '', region: 'Global' });
+  const [selectedEntrants, setSelectedEntrants] = useState<Set<string>>(new Set());
+  const [isDeletingMass, setIsDeletingMass] = useState(false);
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -184,6 +186,33 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
         </div>
 
         <div className="flex items-center gap-4">
+          {selectedEntrants.size > 0 && (
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Delete ${selectedEntrants.size} selected entrants?`)) return;
+                setIsDeletingMass(true);
+                try {
+                  const { error } = await supabase
+                    .from('tournament_entrants')
+                    .delete()
+                    .in('id', Array.from(selectedEntrants));
+                  if (error) throw error;
+                  setEntrants(entrants.filter(e => !selectedEntrants.has(e.id)));
+                  setSelectedEntrants(new Set());
+                  toast.success(`Deleted ${selectedEntrants.size} entrants`);
+                } catch (err: any) {
+                  toast.error(`Failed to delete: ${err.message}`);
+                } finally {
+                  setIsDeletingMass(false);
+                }
+              }}
+              disabled={isDeletingMass}
+              className="flex items-center gap-2 px-6 py-4 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-2xl transition-all active:scale-95 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              Delete Selected ({selectedEntrants.size})
+            </button>
+          )}
           <button
             onClick={handleSeedByRank}
             disabled={seeding || entrants.length === 0}
@@ -200,6 +229,20 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
         <div className="space-y-6">
           <div className="flex items-center justify-between px-4">
             <h2 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Current Entrants ({entrants.length})</h2>
+            {entrants.length > 0 && (
+              <button 
+                onClick={() => {
+                  if (selectedEntrants.size === entrants.length) {
+                    setSelectedEntrants(new Set());
+                  } else {
+                    setSelectedEntrants(new Set(entrants.map(e => e.id)));
+                  }
+                }}
+                className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+              >
+                {selectedEntrants.size === entrants.length ? 'Deselect All' : 'Select All'}
+              </button>
+            )}
           </div>
           
           <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
@@ -207,10 +250,24 @@ export default function ManageEntrantsPage({ params }: { params: Promise<{ id: s
               {entrants.length > 0 ? (
                 <div className="divide-y divide-border/50">
                     {entrants.sort((a, b) => (a.seed || 999) - (b.seed || 999)).map((entrant) => (
-                      <div key={entrant.id} className="p-6 flex items-center justify-between hover:bg-white/5 transition-colors group">
+                      <div 
+                        key={entrant.id} 
+                        onClick={() => {
+                          const next = new Set(selectedEntrants);
+                          if (next.has(entrant.id)) next.delete(entrant.id);
+                          else next.add(entrant.id);
+                          setSelectedEntrants(next);
+                        }}
+                        className={`p-6 flex items-center justify-between hover:bg-white/5 transition-colors group cursor-pointer ${selectedEntrants.has(entrant.id) ? 'bg-primary/5 border-l-2 border-primary' : ''}`}
+                      >
                         <div className="flex items-center gap-4">
-                          <div className="w-6 text-center">
-                            <span className="text-[10px] font-black text-primary italic">#{entrant.seed || '-'}</span>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedEntrants.has(entrant.id) ? 'bg-primary border-primary' : 'border-border'}`}>
+                              {selectedEntrants.has(entrant.id) && <Plus size={10} className="text-white rotate-45" />}
+                            </div>
+                            <div className="w-6 text-center">
+                              <span className="text-[10px] font-black text-primary italic">#{entrant.seed || '-'}</span>
+                            </div>
                           </div>
                           <div className="w-10 h-10 rounded-full overflow-hidden border border-border bg-secondary flex items-center justify-center">
                           {entrant.players?.avatar_url ? (

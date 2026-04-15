@@ -104,6 +104,7 @@ export async function POST(req: Request) {
     const matches = challongeData.matches.map((m: any) => m.match);
     
     // Get all entrants for this tournament to map challonge participant IDs to our player IDs
+    // REFRESH ENTRANTS after participant sync to ensure we have the latest startgg_entrant_id mappings
     const { data: entrants } = await supabase
       .from('tournament_entrants')
       .select('player_id, startgg_entrant_id')
@@ -115,10 +116,12 @@ export async function POST(req: Request) {
       // Sync open, pending, and complete matches
       if (m.state !== 'open' && m.state !== 'pending' && m.state !== 'complete') continue;
 
-      const player1_id = entrantMap.get(m.player1_id?.toString());
-      const player2_id = entrantMap.get(m.player2_id?.toString());
+      const player1_id = m.player1_id ? entrantMap.get(m.player1_id.toString()) : null;
+      const player2_id = m.player2_id ? entrantMap.get(m.player2_id.toString()) : null;
 
-      if (!player1_id || !player2_id) continue;
+      // We can sync matches even if one or both players are TBD (null)
+      // but we need at least one player to create match_players records meaningfully
+      // Actually, let's create the match anyway so it shows up in the bracket
 
       // Check if match exists
       let { data: match } = await supabase
@@ -156,41 +159,40 @@ export async function POST(req: Request) {
 
       if (match) {
         // Upsert match players
-        // For simplicity, we'll clear and re-insert if it's not submitted, or just ensure they exist
-        const { data: existingPlayers } = await supabase.from('match_players').select('id').eq('match_id', match.id);
+        // We ensure match_players exist for any non-null player IDs
+        const { data: existingPlayers } = await supabase.from('match_players').select('id, player_id').eq('match_id', match.id);
         
-        if (!existingPlayers || existingPlayers.length === 0) {
-          await supabase
-            .from('match_players')
-            .insert([
-              { 
-                match_id: match.id, 
-                player_id: player1_id, 
-                sets_won: scores[0] || 0, 
-                total_points: scores[0] || 0, 
-                winner: m.winner_id?.toString() === m.player1_id?.toString() 
-              },
-              { 
-                match_id: match.id, 
-                player_id: player2_id, 
-                sets_won: scores[1] || 0, 
-                total_points: scores[1] || 0, 
-                winner: m.winner_id?.toString() === m.player2_id?.toString() 
-              }
-            ]);
-        } else if (status === 'submitted') {
-          // Update scores for existing match players if submitted
-          await supabase.from('match_players').update({ 
-            sets_won: scores[0] || 0, 
-            total_points: scores[0] || 0, 
-            winner: m.winner_id?.toString() === m.player1_id?.toString() 
-          }).eq('match_id', match.id).eq('player_id', player1_id);
+        const playersToUpsert = [];
+        if (player1_id) {
+          playersToUpsert.push({
+            match_id: match.id,
+            player_id: player1_id,
+            sets_won: scores[0] || 0,
+            total_points: scores[0] || 0,
+            winner: m.winner_id?.toString() === m.player1_id?.toString()
+          });
+        }
+        if (player2_id) {
+          playersToUpsert.push({
+            match_id: match.id,
+            player_id: player2_id,
+            sets_won: scores[1] || 0,
+            total_points: scores[1] || 0,
+            winner: m.winner_id?.toString() === m.player2_id?.toString()
+          });
+        }
 
-          await supabase.from('match_players').update({ 
-            sets_won: scores[1] || 0, 
-            total_points: scores[1] || 0, 
-            winner: m.winner_id?.toString() === m.player2_id?.toString() 
-          }).eq('match_id', match.id).eq('player_id', player2_id);
+        if (playersToUpsert.length > 0) {
+          // Use upsert with onConflict if we had a unique constraint, 
+          // but for now let's just delete and re-insert or update individually
+          for (const p of playersToUpsert) {
+            const existing = existingPlayers?.find(ep => ep.player_id === p.player_id);
+            if (existing) {
+              await supabase.from('match_players').update(p).eq('id', existing.id);
+            } else {
+              await supabase.from('match_players').insert(p);
+            }
+          }
         }
       }
     }
