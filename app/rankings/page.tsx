@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { Player } from '@/types';
-import { Trophy, Search, Filter, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { Trophy, Search, Filter, ChevronLeft, ChevronRight, User, Fingerprint, CheckCircle2, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function RankingsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -14,6 +15,10 @@ export default function RankingsPage() {
   const [region, setRegion] = useState('All');
   const [page, setPage] = useState(1);
   const [championLabel, setChampionLabel] = useState('World Champion');
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [userLinkedPlayerId, setUserLinkedPlayerId] = useState<string | null>(null);
+  const [pendingClaimPlayerId, setPendingClaimPlayerId] = useState<string | null>(null);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
   const pageSize = 25;
 
   const supabase = getSupabase();
@@ -31,6 +36,7 @@ export default function RankingsPage() {
           club,
           region,
           ranking_points,
+          discord_id,
           team:teams (
             id,
             name,
@@ -81,11 +87,64 @@ export default function RankingsPage() {
         .select('content')
         .eq('id', 'rankings.podium.champion_label')
         .single();
-      
+
       if (data) setChampionLabel(data.content);
     };
     fetchContent();
   }, [supabase]);
+
+  // Auth state — check if signed in and whether they already have a linked/claimed profile
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setAuthUser(user);
+
+      // Already linked?
+      const { data: linked } = await supabase
+        .from('players')
+        .select('id')
+        .eq('discord_id', user.id)
+        .maybeSingle();
+      if (linked) { setUserLinkedPlayerId(linked.id); return; }
+
+      // Pending claim?
+      const { data: claim } = await supabase
+        .from('account_claims')
+        .select('player_id')
+        .eq('auth_user_id', user.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+      if (claim) setPendingClaimPlayerId(claim.player_id);
+    };
+    checkAuth();
+  }, [supabase]);
+
+  const handleClaim = async (player: any) => {
+    if (!authUser) { window.location.href = '/login'; return; }
+    setClaimingId(player.id);
+    try {
+      const discordUsername =
+        authUser.user_metadata?.full_name ||
+        authUser.user_metadata?.custom_claims?.global_name ||
+        authUser.email;
+
+      const { error } = await supabase.from('account_claims').insert({
+        auth_user_id: authUser.id,
+        player_id: player.id,
+        status: 'pending',
+        discord_username: discordUsername,
+        email: authUser.email,
+      });
+      if (error) throw error;
+      setPendingClaimPlayerId(player.id);
+      toast.success(`Claim submitted for ${player.display_name}! An admin will review it soon.`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit claim');
+    } finally {
+      setClaimingId(null);
+    }
+  };
 
   const regions = ['All', 'North America', 'Europe', 'Asia', 'Oceania', 'South America'];
 
@@ -232,6 +291,7 @@ export default function RankingsPage() {
                 <th className="px-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">SK</th>
                 <th className="px-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">W/L</th>
                 <th className="px-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right">Played</th>
+                <th className="px-6 py-6 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center w-24">Claim</th>
               </tr>
             </thead>
             <tbody>
@@ -259,6 +319,7 @@ export default function RankingsPage() {
                     <td className="px-6 py-6 text-right"><div className="w-8 h-3 bg-white/5 rounded ml-auto animate-pulse" /></td>
                     <td className="px-6 py-6 text-center"><div className="w-12 h-3 bg-white/5 rounded mx-auto animate-pulse" /></td>
                     <td className="px-6 py-6 text-right"><div className="w-8 h-3 bg-white/5 rounded ml-auto animate-pulse" /></td>
+                    <td className="px-6 py-6 text-center"><div className="w-14 h-6 bg-white/5 rounded ml-auto animate-pulse" /></td>
                   </tr>
                 ))
               ) : players.length > 0 ? (
@@ -382,12 +443,51 @@ export default function RankingsPage() {
                       <td className="px-6 py-6 text-right text-[10px] font-bold text-primary">
                         {tournamentsEntered}
                       </td>
+                      <td className="px-6 py-6 text-center">
+                        {/* Already this user's linked profile */}
+                        {userLinkedPlayerId === player.id ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/10 text-green-400 text-[8px] font-black uppercase tracking-widest">
+                            <CheckCircle2 size={10} /> You
+                          </span>
+                        ) : /* Player is claimed by someone else */
+                        (player as any).discord_id ? (
+                          <span className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-widest">—</span>
+                        ) : /* Pending claim on this player by current user */
+                        pendingClaimPlayerId === player.id ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-[8px] font-black uppercase tracking-widest">
+                            <Clock size={10} /> Pending
+                          </span>
+                        ) : /* Signed in — show Claim button */
+                        authUser ? (
+                          userLinkedPlayerId || pendingClaimPlayerId ? (
+                            // User already has a linked profile or pending claim elsewhere — disable
+                            <span className="text-[8px] font-bold text-muted-foreground/40 uppercase tracking-widest">—</span>
+                          ) : (
+                            <button
+                              onClick={() => handleClaim(player)}
+                              disabled={claimingId === player.id}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 text-[8px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+                            >
+                              <Fingerprint size={10} />
+                              {claimingId === player.id ? '...' : 'Claim'}
+                            </button>
+                          )
+                        ) : (
+                          /* Not signed in — show login nudge */
+                          <Link
+                            href="/login"
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground border border-white/10 text-[8px] font-black uppercase tracking-widest hover:border-primary/30 hover:text-primary transition-all"
+                          >
+                            <Fingerprint size={10} /> Claim
+                          </Link>
+                        )}
+                      </td>
                     </motion.tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={13} className="px-6 py-20 text-center">
+                  <td colSpan={14} className="px-6 py-20 text-center">
                     <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs">No players found</p>
                   </td>
                 </tr>
