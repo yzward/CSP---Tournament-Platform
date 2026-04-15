@@ -135,8 +135,12 @@ CREATE TABLE IF NOT EXISTS player_stats (
   pen_count           INT DEFAULT 0,
   tournaments_entered INT DEFAULT 0,
   best_placement      INT,
+  swiss_king_total    INT NOT NULL DEFAULT 0,
   updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add swiss_king_total to existing installs
+ALTER TABLE player_stats ADD COLUMN IF NOT EXISTS swiss_king_total INT NOT NULL DEFAULT 0;
 
 -- ── 10. PARTS ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS parts (

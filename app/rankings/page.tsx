@@ -46,7 +46,9 @@ export default function RankingsPage() {
             wrn_count,
             pen_count,
             win_rate,
-            tournaments_entered
+            tournaments_entered,
+            swiss_king_total,
+            best_placement
           )
         `, { count: 'exact' })
         .order('ranking_points', { ascending: false });
@@ -274,18 +276,18 @@ export default function RankingsPage() {
                   const bur = stats.bur_count || 0;
                   const spn = stats.spn_count || 0;
                   const pen = stats.pen_count || 0;
-                  const sk = 0; // Removed swiss_king_total
-                  
+                  const sk = stats.swiss_king_total || 0;
+
                   // Ratios (per event)
                   const extE = tournamentsEntered > 0 ? (ext / tournamentsEntered).toFixed(2) : "0.00";
                   const ovrE = tournamentsEntered > 0 ? (ovr / tournamentsEntered).toFixed(2) : "0.00";
                   const burE = tournamentsEntered > 0 ? (bur / tournamentsEntered).toFixed(2) : "0.00";
                   const spnE = tournamentsEntered > 0 ? (spn / tournamentsEntered).toFixed(2) : "0.00";
                   const penE = tournamentsEntered > 0 ? (pen / tournamentsEntered).toFixed(2) : "0.00";
-                  
-                  // PPS Calculation: (EXT*3 + OVR*2 + BUR*2 + SPN*1) / matchesPlayed
-                  const totalFinishPoints = (ext * 3) + (ovr * 2) + (bur * 2) + (spn * 1);
-                  const pps = matchesPlayed > 0 ? (totalFinishPoints / matchesPlayed).toFixed(2) : "0.00";
+
+                  // PPS: (SPN×1 + BUR×2 + OVR×2 + EXT×3 + PEN×1) / tournaments_entered
+                  const totalFinishPoints = (spn * 1) + (bur * 2) + (ovr * 2) + (ext * 3) + (pen * 1);
+                  const pps = tournamentsEntered > 0 ? (totalFinishPoints / tournamentsEntered).toFixed(2) : "0.00";
 
                   return (
                     <motion.tr
