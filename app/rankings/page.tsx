@@ -57,6 +57,7 @@ export default function RankingsPage() {
             best_placement
           )
         `, { count: 'exact' })
+        .eq('status', 'approved')
         .order('ranking_points', { ascending: false });
 
       if (search) {
