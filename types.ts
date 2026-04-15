@@ -15,6 +15,7 @@ export interface Player {
   has_password?: boolean;
   startgg_user_id?: string;
   team_id?: string;
+  team?: Team;
   created_at: string;
 }
 

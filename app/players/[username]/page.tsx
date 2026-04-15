@@ -29,6 +29,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ userna
         .from('players')
         .select(`
           *,
+          team:teams (*),
           player_stats (*)
         `)
         .eq('username', username)
@@ -118,7 +119,16 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ userna
               </div>
               <div className="flex items-center gap-2">
                 <Shield size={14} className="text-primary" />
-                <span className="text-[10px] font-black uppercase tracking-widest">{player.club || 'Independent'}</span>
+                {player.team ? (
+                  <Link 
+                    href={`/teams/${player.team.slug}`}
+                    className="text-[10px] font-black uppercase tracking-widest hover:text-primary transition-colors"
+                  >
+                    {player.team.name}
+                  </Link>
+                ) : (
+                  <span className="text-[10px] font-black uppercase tracking-widest">{player.club || 'Independent'}</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Calendar size={14} className="text-primary" />

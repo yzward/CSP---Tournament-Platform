@@ -31,6 +31,11 @@ export default function RankingsPage() {
           club,
           region,
           ranking_points,
+          team:teams (
+            id,
+            name,
+            slug
+          ),
           player_stats (
             matches_played,
             matches_won,
@@ -334,15 +339,24 @@ export default function RankingsPage() {
                         </Link>
                       </td>
                       <td className="px-6 py-6">
-                        <button 
-                          onClick={() => {
-                            setSearch(player.club || '');
-                            setPage(1);
-                          }}
-                          className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors truncate block max-w-[120px] text-left"
-                        >
-                          {player.club || 'Independent'}
-                        </button>
+                        {player.team ? (
+                          <Link 
+                            href={`/teams/${(player.team as any).slug}`}
+                            className="text-[10px] font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors truncate block max-w-[120px] text-left"
+                          >
+                            {(player.team as any).name}
+                          </Link>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              setSearch(player.club || '');
+                              setPage(1);
+                            }}
+                            className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors truncate block max-w-[120px] text-left"
+                          >
+                            {player.club || 'Independent'}
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-6 text-right">
                         <div className="text-sm font-black italic text-primary">
