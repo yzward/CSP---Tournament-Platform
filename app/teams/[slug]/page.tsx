@@ -38,8 +38,7 @@ export default function TeamProfilePage() {
             player_stats (
               matches_played,
               matches_won,
-              win_rate,
-              ranking_points
+              win_rate
             )
           `)
           .eq('team_id', teamData.id)
