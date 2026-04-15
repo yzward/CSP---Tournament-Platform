@@ -292,7 +292,7 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
     }
 
     // Report to Challonge if linked
-    if (match.evaroon_match_id) {
+    if (match.challonge_match_id) {
       fetch('/api/challonge/report-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

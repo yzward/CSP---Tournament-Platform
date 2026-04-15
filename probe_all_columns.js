@@ -14,9 +14,9 @@ async function probeColumn(tableName, columnName) {
 
 async function main() {
   const tables = {
-    tournaments: ['format', 'stage1_format', 'stage2_format', 'held_at', 'date', 'evaroon_id'],
+    tournaments: ['format', 'stage1_format', 'stage2_format', 'held_at', 'date', 'challonge_id'],
     tournament_entrants: ['startgg_entrant_id', 'challonge_participant_id', 'status', 'placement'],
-    matches: ['evaroon_match_id', 'challonge_match_id', 'status', 'stage'],
+    matches: ['challonge_match_id', 'status', 'stage'],
     players: ['discord_id', 'username', 'display_name']
   };
   

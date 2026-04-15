@@ -91,8 +91,8 @@ export interface Tournament {
   discord_webhook_url?: string;
   organiser_id?: string;
   top_cut_size?: number;
-  /** Legacy column name, now stores Challonge URL/ID or start.gg slug */
-  evaroon_id?: string;
+  /** Challonge tournament URL/ID or slug */
+  challonge_id?: string;
   bracket_data?: any;
   created_at: string;
 }
@@ -114,8 +114,9 @@ export interface Match {
   ref_id?: string;
   court_id?: string;
   stage?: string;
-  /** Legacy column name, now stores start.gg match id */
-  evaroon_match_id?: string;
+  /** Challonge match ID for idempotent re-syncs */
+  challonge_match_id?: string;
+  winner_id?: string;
   played_at?: string;
   notes?: string;
   created_at: string;

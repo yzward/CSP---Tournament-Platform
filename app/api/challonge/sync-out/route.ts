@@ -25,7 +25,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    if (!tournament.evaroon_id) {
+    if (!tournament.challonge_id) {
       return NextResponse.json({ error: 'Tournament is not linked to Challonge' }, { status: 400 });
     }
 
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'CHALLONGE_API_KEY is not configured' }, { status: 500 });
     }
 
-    const { id: challongeId } = parseTournamentId(tournament.evaroon_id);
+    const { id: challongeId } = parseTournamentId(tournament.challonge_id);
 
     // 2. Get entrants not yet pushed to Challonge
     const { data: entrants, error: eError } = await supabase

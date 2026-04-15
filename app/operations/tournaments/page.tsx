@@ -104,7 +104,7 @@ export default function ImportTournament() {
                          tournament.tournament_type === 'double elimination' ? 'double_elim' : 
                          tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
           status: 'active',
-          evaroon_id: tournament.url,
+          challonge_id: tournament.url,
           location: 'Offline',
           description: tournament.description || '',
           organiser_id: organiserId || null

@@ -46,9 +46,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    if (!tournament.evaroon_id) {
+    if (!tournament.challonge_id) {
       return NextResponse.json(
-        { error: 'Tournament is not linked to Challonge. Set the evaroon_id field first.' },
+        { error: 'Tournament is not linked to Challonge. Set the challonge_id field first.' },
         { status: 400 }
       );
     }
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     // ── 2. Fetch from Challonge (V3 pattern: clean parse, validate response) ─
-    const { id: challongeId } = parseTournamentId(tournament.evaroon_id);
+    const { id: challongeId } = parseTournamentId(tournament.challonge_id);
     const challongeUrl =
       `https://api.challonge.com/v1/tournaments/${challongeId}.json` +
       `?include_participants=1&include_matches=1&api_key=${apiKey}`;
@@ -211,7 +211,7 @@ export async function POST(req: Request) {
         let { data: match } = await supabase
           .from('matches')
           .select('id, status')
-          .eq('evaroon_match_id', m.id.toString())
+          .eq('challonge_match_id', m.id.toString())
           .maybeSingle();
 
         if (!match) {
@@ -220,7 +220,7 @@ export async function POST(req: Request) {
             .from('matches')
             .insert({
               tournament_id: tournamentId,
-              evaroon_match_id: m.id.toString(),
+              challonge_match_id: m.id.toString(),
               status: matchStatus,
               stage: roundLabel,
               winner_id,

@@ -17,11 +17,11 @@ export async function POST(req: Request) {
       .single();
 
     if (matchError || !match) throw new Error('Match not found');
-    if (!match.evaroon_match_id) throw new Error('Match not linked to Challonge');
-    if (!match.tournaments?.evaroon_id) throw new Error('Tournament not linked to Challonge');
+    if (!match.challonge_match_id) throw new Error('Match not linked to Challonge');
+    if (!match.tournaments?.challonge_id) throw new Error('Tournament not linked to Challonge');
 
-    const { id: challongeTournamentId } = parseTournamentId(match.tournaments.evaroon_id);
-    const challongeMatchId = match.evaroon_match_id;
+    const { id: challongeTournamentId } = parseTournamentId(match.tournaments.challonge_id);
+    const challongeMatchId = match.challonge_match_id;
 
     // 2. Get match players
     const { data: matchPlayers, error: mpError } = await supabase

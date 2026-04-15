@@ -159,9 +159,9 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
                 </span>
               )}
             </div>
-            {tournament.evaroon_id && (
+            {tournament.challonge_id && (
               <a
-                href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
+                href={tournament.challonge_id.includes('challonge.com') ? tournament.challonge_id : `https://challonge.com/${tournament.challonge_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-primary hover:text-primary/80 transition-colors"
@@ -245,9 +245,9 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
               </>
             )}
 
-            {tournament.evaroon_id && (
+            {tournament.challonge_id && (
               <a
-                href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
+                href={tournament.challonge_id.includes('challonge.com') ? tournament.challonge_id : `https://challonge.com/${tournament.challonge_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/10 transition-all active:scale-95"
@@ -438,10 +438,10 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
 
           {activeTab === 'bracket' && (
             <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden min-h-[800px] flex flex-col">
-              {tournament.evaroon_id ? (
+              {tournament.challonge_id ? (
                 <div className="flex-1 w-full h-full min-h-[800px] relative">
                   <iframe
-                    src={`${tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}/module?theme=1&multiplier=0.8&match_width_multiplier=0.9&show_final_results=1&show_standings=1`}
+                    src={`${tournament.challonge_id.includes('challonge.com') ? tournament.challonge_id : `https://challonge.com/${tournament.challonge_id}`}/module?theme=1&multiplier=0.8&match_width_multiplier=0.9&show_final_results=1&show_standings=1`}
                     width="100%"
                     height="100%"
                     frameBorder="0"

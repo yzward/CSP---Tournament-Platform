@@ -9,15 +9,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const { data: tournament, error: tError } = await supabase
       .from('tournaments')
-      .select('evaroon_id')
+      .select('challonge_id')
       .eq('id', id)
       .single();
 
-    if (tError || !tournament || !tournament.evaroon_id) {
+    if (tError || !tournament || !tournament.challonge_id) {
       return NextResponse.json({ status: 'unknown' });
     }
 
-    const { id: challongeId } = parseTournamentId(tournament.evaroon_id);
+    const { id: challongeId } = parseTournamentId(tournament.challonge_id);
     const apiKey = process.env.CHALLONGE_API_KEY;
 
     if (!apiKey) {
