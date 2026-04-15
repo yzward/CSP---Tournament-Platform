@@ -317,6 +317,7 @@ export async function POST(req: Request) {
       success: true,
       message: `Synced ${participants.length} participants and ${syncedCount} matches from Challonge`,
       warnings: errors,
+      debug_version: 'v2',
     });
 
   } catch (error: any) {
