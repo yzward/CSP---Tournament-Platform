@@ -24,8 +24,8 @@ export default function ContentManagementPage() {
         console.error('Supabase error:', error);
         // If the table doesn't exist, we'll get an error. 
         // In this environment, we should inform the user if it's a schema issue.
-        if (error.code === '42P01') {
-          toast.error('Database table "site_content" does not exist. Please run the migration.');
+        if (error.code === '42P01' || error.message.includes('Could not find the table')) {
+          toast.error('Database table "site_content" does not exist. Please run the migration in Supabase SQL Editor.');
         } else {
           toast.error(`Failed to fetch content: ${error.message}`);
         }

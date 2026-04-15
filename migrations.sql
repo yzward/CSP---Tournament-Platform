@@ -191,3 +191,86 @@ BEGIN
     PERFORM refresh_player_stats(r.id);
   END LOOP;
 END $$;
+
+-- ============================================================
+-- site_content — editable site text
+-- ============================================================
+CREATE TABLE IF NOT EXISTS site_content (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by UUID REFERENCES players(id)
+);
+
+ALTER TABLE site_content ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "public_read_site_content" ON site_content;
+CREATE POLICY "public_read_site_content" ON site_content FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "admin_write_site_content" ON site_content;
+CREATE POLICY "admin_write_site_content" ON site_content FOR ALL TO authenticated USING (
+  EXISTS (
+    SELECT 1 FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.player_id = (SELECT id FROM players WHERE discord_id = auth.uid()::text)
+    AND r.name = 'Admin'
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.player_id = (SELECT id FROM players WHERE discord_id = auth.uid()::text)
+    AND r.name = 'Admin'
+  )
+);
+
+INSERT INTO site_content (id, content) VALUES
+('home.hero.headline', 'The home of competitive Beyblade X'),
+('home.hero.subtitle', 'Tournament management, live match scoring, and global rankings — all in one place. Built for the Spirit Gaming Beyblade X community.'),
+('home.features.tournament.title', 'Tournament Engine'),
+('home.features.tournament.body', 'Swiss, Round Robin, Single & Double Elimination. Auto-seeding by ranking. Bracket preview before you generate.'),
+('home.features.scoring.title', 'Live Scoring'),
+('home.features.scoring.body', 'Referees grab and score matches in real-time. Every EXT, OVR, BUR, SPN finish logged per beyblade.'),
+('home.features.rankings.title', 'Global Rankings'),
+('home.features.rankings.body', 'Points awarded automatically on tournament completion. Head-to-head records and meta stats per part.')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================================
+-- account_claims — profile claiming system
+-- ============================================================
+CREATE TABLE IF NOT EXISTS account_claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id UUID NOT NULL, -- References auth.users(id)
+  player_id UUID REFERENCES players(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  discord_username TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE account_claims ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "users_read_own_claims" ON account_claims;
+CREATE POLICY "users_read_own_claims" ON account_claims FOR SELECT USING (auth_user_id = auth.uid());
+
+DROP POLICY IF EXISTS "users_insert_own_claims" ON account_claims;
+CREATE POLICY "users_insert_own_claims" ON account_claims FOR INSERT WITH CHECK (auth_user_id = auth.uid());
+
+DROP POLICY IF EXISTS "admins_read_all_claims" ON account_claims;
+CREATE POLICY "admins_read_all_claims" ON account_claims FOR SELECT TO authenticated USING (
+  EXISTS (
+    SELECT 1 FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.player_id = (SELECT id FROM players WHERE discord_id = auth.uid()::text)
+    AND r.name = 'Admin'
+  )
+);
+
+DROP POLICY IF EXISTS "admins_update_claims" ON account_claims;
+CREATE POLICY "admins_update_claims" ON account_claims FOR UPDATE TO authenticated USING (
+  EXISTS (
+    SELECT 1 FROM user_roles ur
+    JOIN roles r ON ur.role_id = r.id
+    WHERE ur.player_id = (SELECT id FROM players WHERE discord_id = auth.uid()::text)
+    AND r.name = 'Admin'
+  )
+);
