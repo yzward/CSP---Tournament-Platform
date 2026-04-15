@@ -2,7 +2,31 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { parseTournamentId } from '@/lib/challonge';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Parse Challonge scores_csv (e.g. "2-1" or null) → [sets_won1, sets_won2] */
+function parseScores(scores_csv: string | null): [number, number] {
+  if (!scores_csv) return [0, 0];
+  // Challonge format: "2-1" (sets won by player1, player2)
+  // For best-of multi-game: "2-1,1-2,2-0" — take totals
+  const games = scores_csv.split(',');
+  let s1 = 0, s2 = 0;
+  for (const g of games) {
+    const parts = g.trim().split('-');
+    s1 += parseInt(parts[0]) || 0;
+    s2 += parseInt(parts[1]) || 0;
+  }
+  return [s1, s2];
+}
+
+/** Challonge match states that are worth syncing */
+const SYNCABLE_STATES = new Set(['open', 'pending', 'underway', 'complete']);
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
+
 export async function POST(req: Request) {
+  const errors: string[] = [];
+
   try {
     const { tournamentId } = await req.json();
     if (!tournamentId) {
@@ -11,7 +35,7 @@ export async function POST(req: Request) {
 
     const supabase = getSupabaseAdmin();
 
-    // 1. Get tournament from local DB
+    // ── 1. Load local tournament ────────────────────────────────────────────
     const { data: tournament, error: tError } = await supabase
       .from('tournaments')
       .select('*')
@@ -23,215 +47,262 @@ export async function POST(req: Request) {
     }
 
     if (!tournament.evaroon_id) {
-      console.error('[Sync] Tournament evaroon_id is missing:', tournament);
-      return NextResponse.json({ error: 'Tournament is not linked to Challonge' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Tournament is not linked to Challonge. Set the evaroon_id field first.' },
+        { status: 400 }
+      );
     }
 
-    console.log('[Sync] evaroon_id:', tournament.evaroon_id);
-    const { id: challongeId } = parseTournamentId(tournament.evaroon_id);
-    console.log('[Sync] challongeId:', challongeId);
-
-    // 2. Fetch from Challonge
     const apiKey = process.env.CHALLONGE_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: 'CHALLONGE_API_KEY is missing' }, { status: 500 });
+      return NextResponse.json({ error: 'CHALLONGE_API_KEY is not configured' }, { status: 500 });
     }
 
-    const challongeUrl = `https://api.challonge.com/v1/tournaments/${challongeId}.json?include_participants=1&include_matches=1&api_key=${apiKey}`;
-    const response = await fetch(challongeUrl);
-    const result = await response.json();
-    
-    if (!response.ok) {
-      console.error('[Sync] Challonge API error:', result);
-      throw new Error(result.error || 'Failed to fetch from Challonge');
+    // ── 2. Fetch from Challonge (V3 pattern: clean parse, validate response) ─
+    const { id: challongeId } = parseTournamentId(tournament.evaroon_id);
+    const challongeUrl =
+      `https://api.challonge.com/v1/tournaments/${challongeId}.json` +
+      `?include_participants=1&include_matches=1&api_key=${apiKey}`;
+
+    const challongeRes = await fetch(challongeUrl);
+    const challongeRaw = await challongeRes.json();
+
+    if (!challongeRes.ok) {
+      console.error('[Sync] Challonge API error:', challongeRaw);
+      return NextResponse.json(
+        { error: challongeRaw?.errors?.[0] || `Challonge returned ${challongeRes.status}` },
+        { status: 502 }
+      );
     }
 
-    const challongeData = result.tournament;
-    console.log(`[Sync] Syncing tournament: ${challongeData.name} (${challongeId})`);
+    // Validate the response shape (V3 pattern)
+    if (!challongeRaw?.tournament) {
+      return NextResponse.json(
+        { error: 'Unexpected Challonge response — tournament wrapper missing' },
+        { status: 502 }
+      );
+    }
 
-    // 3. Sync Participants
-    const participants = challongeData.participants.map((p: any) => p.participant);
-    console.log(`[Sync] Found ${participants.length} participants in Challonge`);
-    
+    const ct = challongeRaw.tournament;
+    const participants: any[] = (ct.participants || []).map((p: any) => p.participant);
+    const matches: any[]      = (ct.matches      || []).map((m: any) => m.match);
+
+    console.log(`[Sync] ${ct.name} — ${participants.length} participants, ${matches.length} matches`);
+
+    // ── 3. Sync participants ────────────────────────────────────────────────
+    //
+    // Match order (most → least specific):
+    //   a) Existing tournament_entrant with matching startgg_entrant_id  → already synced
+    //   b) Player found by display_name                                  → link & upsert entrant
+    //   c) No match                                                       → create player, then entrant
+    //
+    // We deliberately do NOT store Challonge IDs in players.discord_id.
+    // That field is reserved for Discord snowflakes.
+
     for (const p of participants) {
-      const name = p.display_name || p.name;
-      
-      // Try to find existing player by startgg_user_id (we'll use this for challonge ID for now to avoid schema changes)
-      // Actually, let's just match by name or create a new one.
-      let { data: player } = await supabase
-        .from('players')
-        .select('id')
-        .eq('display_name', name)
-        .maybeSingle();
+      const name = (p.display_name || p.name || '').trim();
+      if (!name) continue;
 
-      if (!player) {
-        const { data: newPlayer } = await supabase
-          .from('players')
-          .insert({
-            display_name: name,
-            username: name.toLowerCase().replace(/[^a-z0-9]/g, ''),
-            discord_id: p.id.toString(), // Store challonge ID here temporarily if needed, or just generate a random one
-            region: 'Global',
-            club: 'None'
-          })
-          .select('id')
-          .single();
-        player = newPlayer;
-      }
+      const challongeParticipantId = p.id?.toString();
 
-      if (player) {
-        // Check if entrant exists
+      try {
+        // a) Already have an entrant with this Challonge participant ID?
         const { data: existingEntrant } = await supabase
           .from('tournament_entrants')
-          .select('id')
+          .select('id, player_id')
           .eq('tournament_id', tournamentId)
-          .eq('player_id', player.id)
+          .eq('startgg_entrant_id', challongeParticipantId)
           .maybeSingle();
 
-        if (!existingEntrant) {
-          await supabase
-            .from('tournament_entrants')
+        if (existingEntrant) {
+          // Already synced — nothing to do
+          continue;
+        }
+
+        // b) Find player by display_name (case-insensitive)
+        let { data: player } = await supabase
+          .from('players')
+          .select('id')
+          .ilike('display_name', name)
+          .maybeSingle();
+
+        // c) Create player if not found
+        if (!player) {
+          const safeUsername = name
+            .toLowerCase()
+            .replace(/[^a-z0-9_]/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_|_$/g, '')
+            .substring(0, 30) || `player_${challongeParticipantId}`;
+
+          const { data: newPlayer, error: createErr } = await supabase
+            .from('players')
             .insert({
+              display_name: name,
+              username: safeUsername,
+              // discord_id intentionally omitted — nullable after migration
+              region: 'Global',
+              club: 'None',
+            })
+            .select('id')
+            .single();
+
+          if (createErr || !newPlayer) {
+            errors.push(`Failed to create player "${name}": ${createErr?.message}`);
+            continue;
+          }
+          player = newPlayer;
+        }
+
+        // Upsert tournament_entrant (handles duplicate tournament/player combos safely)
+        const { error: entrantErr } = await supabase
+          .from('tournament_entrants')
+          .upsert(
+            {
               tournament_id: tournamentId,
               player_id: player.id,
+              startgg_entrant_id: challongeParticipantId,
               status: 'active',
-              startgg_entrant_id: p.id.toString() // Store challonge participant ID here
-            });
-        } else {
-          await supabase
-            .from('tournament_entrants')
-            .update({ startgg_entrant_id: p.id.toString() })
-            .eq('id', existingEntrant.id);
+            },
+            { onConflict: 'tournament_id,player_id' }
+          );
+
+        if (entrantErr) {
+          errors.push(`Failed to upsert entrant "${name}": ${entrantErr.message}`);
         }
+      } catch (err: any) {
+        errors.push(`Error processing participant "${name}": ${err.message}`);
       }
     }
 
-    // 4. Sync Matches
-    const matches = challongeData.matches.map((m: any) => m.match);
-    console.log(`[Sync] Found ${matches.length} matches in Challonge`);
-    
-    // Get all entrants for this tournament to map challonge participant IDs to our player IDs
-    // REFRESH ENTRANTS after participant sync to ensure we have the latest startgg_entrant_id mappings
+    // ── 4. Build entrant map (Challonge participant ID → local player UUID) ──
     const { data: entrants } = await supabase
       .from('tournament_entrants')
       .select('player_id, startgg_entrant_id')
-      .eq('tournament_id', tournamentId);
+      .eq('tournament_id', tournamentId)
+      .not('startgg_entrant_id', 'is', null);
 
-    const entrantMap = new Map(
-      (entrants || [])
-        .filter(e => e.startgg_entrant_id)
-        .map(e => [e.startgg_entrant_id!.toString(), e.player_id])
+    const entrantMap = new Map<string, string>(
+      (entrants || []).map(e => [e.startgg_entrant_id!.toString(), e.player_id])
     );
-    console.log(`[Sync] Entrant map size: ${entrantMap.size}`);
+    console.log(`[Sync] Entrant map: ${entrantMap.size} entries`);
 
+    // ── 5. Sync matches ─────────────────────────────────────────────────────
     let syncedCount = 0;
+
     for (const m of matches) {
-      // Sync open, pending, and complete matches
-      if (m.state !== 'open' && m.state !== 'pending' && m.state !== 'complete') {
-        console.log(`[Sync] Skipping match ${m.id} with state: ${m.state}`);
+      if (!SYNCABLE_STATES.has(m.state)) {
+        console.log(`[Sync] Skipping match ${m.id} (state: ${m.state})`);
         continue;
       }
 
-      const player1_id = m.player1_id ? entrantMap.get(m.player1_id.toString()) : null;
-      const player2_id = m.player2_id ? entrantMap.get(m.player2_id.toString()) : null;
+      const player1_id  = m.player1_id ? entrantMap.get(m.player1_id.toString()) ?? null : null;
+      const player2_id  = m.player2_id ? entrantMap.get(m.player2_id.toString()) ?? null : null;
+      const winner_id   = m.winner_id  ? entrantMap.get(m.winner_id.toString())  ?? null : null;
+      const isComplete  = m.state === 'complete';
+      const matchStatus = isComplete ? 'submitted' : 'pending';
+      const [sets1, sets2] = parseScores(m.scores_csv);
+      const roundLabel = m.round > 0
+        ? `Round ${m.round}`
+        : `Losers Round ${Math.abs(m.round)}`;
 
-      // We can sync matches even if one or both players are TBD (null)
-      // but we need at least one player to create match_players records meaningfully
-      // Actually, let's create the match anyway so it shows up in the bracket
-
-      // Check if match exists
-      let { data: match } = await supabase
-        .from('matches')
-        .select('id, status')
-        .eq('evaroon_match_id', m.id.toString())
-        .maybeSingle();
-
-      const scores = m.scores_csv ? m.scores_csv.split('-').map((s: string) => parseInt(s.trim())) : [0, 0];
-      const status = m.state === 'complete' ? 'submitted' : 'pending';
-
-      if (!match) {
-        const { data: newMatch } = await supabase
+      try {
+        // Look up by Challonge match ID (idempotent re-sync)
+        let { data: match } = await supabase
           .from('matches')
-          .insert({
-            tournament_id: tournamentId,
-            evaroon_match_id: m.id.toString(),
-            status: status,
-            stage: m.round > 0 ? `Round ${m.round}` : `Losers Round ${Math.abs(m.round)}`,
-            winner_id: m.winner_id ? entrantMap.get(m.winner_id.toString()) : null
-          })
-          .select('id')
-          .single();
-        match = newMatch;
-        console.log(`[Sync] Created new match: ${match.id} (Challonge: ${m.id})`);
-      } else if (match.status !== 'submitted' && status === 'submitted') {
-        // Update to submitted if it was pending
-        await supabase
-          .from('matches')
-          .update({ 
-            status: 'submitted',
-            winner_id: m.winner_id ? entrantMap.get(m.winner_id.toString()) : null
-          })
-          .eq('id', match.id);
-      }
+          .select('id, status')
+          .eq('evaroon_match_id', m.id.toString())
+          .maybeSingle();
 
-      if (match) {
-        // Upsert match players
-        // We ensure match_players exist for any non-null player IDs
-        const { data: existingPlayers } = await supabase.from('match_players').select('id, player_id').eq('match_id', match.id);
-        
-        const playersToUpsert = [];
+        if (!match) {
+          // Create new match
+          const { data: newMatch, error: mErr } = await supabase
+            .from('matches')
+            .insert({
+              tournament_id: tournamentId,
+              evaroon_match_id: m.id.toString(),
+              status: matchStatus,
+              stage: roundLabel,
+              winner_id,
+            })
+            .select('id, status')
+            .single();
+
+          if (mErr || !newMatch) {
+            errors.push(`Failed to create match (Challonge ${m.id}): ${mErr?.message}`);
+            continue;
+          }
+          match = newMatch;
+        } else if (match.status !== 'submitted' && isComplete) {
+          // Promote to submitted once Challonge marks it complete
+          await supabase
+            .from('matches')
+            .update({ status: 'submitted', winner_id })
+            .eq('id', match.id);
+        }
+
+        // ── Upsert match_players ──────────────────────────────────────────
+        // Fetch existing rows so we can diff cleanly
+        const { data: existingMPs } = await supabase
+          .from('match_players')
+          .select('id, player_id')
+          .eq('match_id', match.id);
+
+        const desired: { match_id: string; player_id: string; sets_won: number; total_points: number; winner: boolean }[] = [];
         if (player1_id) {
-          playersToUpsert.push({
+          desired.push({
             match_id: match.id,
             player_id: player1_id,
-            sets_won: scores[0] || 0,
-            total_points: scores[0] || 0,
-            winner: m.winner_id?.toString() === m.player1_id?.toString()
+            sets_won: sets1,
+            total_points: sets1,
+            winner: winner_id === player1_id,
           });
         }
         if (player2_id) {
-          playersToUpsert.push({
+          desired.push({
             match_id: match.id,
             player_id: player2_id,
-            sets_won: scores[1] || 0,
-            total_points: scores[1] || 0,
-            winner: m.winner_id?.toString() === m.player2_id?.toString()
+            sets_won: sets2,
+            total_points: sets2,
+            winner: winner_id === player2_id,
           });
         }
 
-        if (playersToUpsert.length > 0) {
-          // 1. Remove any match_players that are no longer in this match
-          const currentPlayerIds = playersToUpsert.map(p => p.player_id);
-          const playersToRemove = existingPlayers?.filter(ep => !currentPlayerIds.includes(ep.player_id)) || [];
-          
-          if (playersToRemove.length > 0) {
-            await supabase.from('match_players').delete().in('id', playersToRemove.map(p => p.id));
-          }
+        // Remove stale match_players (player was re-assigned in bracket)
+        const desiredPlayerIds = new Set(desired.map(d => d.player_id));
+        const toRemove = (existingMPs || []).filter(ep => !desiredPlayerIds.has(ep.player_id));
+        if (toRemove.length > 0) {
+          await supabase
+            .from('match_players')
+            .delete()
+            .in('id', toRemove.map(r => r.id));
+        }
 
-          // 2. Upsert current players
-          for (const p of playersToUpsert) {
-            const existing = existingPlayers?.find(ep => ep.player_id === p.player_id);
-            if (existing) {
-              await supabase.from('match_players').update(p).eq('id', existing.id);
-            } else {
-              await supabase.from('match_players').insert(p);
-            }
-          }
-        } else {
-          // If both players are TBD, clear existing match_players
-          if (existingPlayers && existingPlayers.length > 0) {
-            await supabase.from('match_players').delete().eq('match_id', match.id);
+        // Upsert desired match_players
+        for (const mp of desired) {
+          const existing = (existingMPs || []).find(ep => ep.player_id === mp.player_id);
+          if (existing) {
+            await supabase.from('match_players').update(mp).eq('id', existing.id);
+          } else {
+            await supabase.from('match_players').insert(mp);
           }
         }
+
+        syncedCount++;
+      } catch (err: any) {
+        errors.push(`Error processing match ${m.id}: ${err.message}`);
       }
-      syncedCount++;
     }
 
-    console.log(`[Sync] Successfully synced ${syncedCount} matches`);
-    return NextResponse.json({ success: true, message: `Synced ${syncedCount} matches successfully from Challonge` });
+    console.log(`[Sync] Done — ${syncedCount} matches synced, ${errors.length} errors`);
+    return NextResponse.json({
+      success: true,
+      message: `Synced ${participants.length} participants and ${syncedCount} matches from Challonge`,
+      ...(errors.length > 0 && { warnings: errors }),
+    });
 
   } catch (error: any) {
-    console.error('Challonge Sync Error:', error);
-    return NextResponse.json({ error: error.message || 'Failed to sync' }, { status: 500 });
+    console.error('[Sync] Unhandled error:', error);
+    return NextResponse.json({ error: error.message || 'Sync failed' }, { status: 500 });
   }
 }
