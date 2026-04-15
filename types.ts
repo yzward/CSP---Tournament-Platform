@@ -1,6 +1,6 @@
 export type TournamentFormat = 'single_elim' | 'double_elim' | 'round_robin' | 'swiss';
 export type MatchStatus = 'pending' | 'grabbed' | 'in_progress' | 'logged' | 'submitted';
-export type TournamentStatus = 'active' | 'completed';
+export type TournamentStatus = 'pending' | 'active' | 'completed';
 
 export interface Player {
   id: string;

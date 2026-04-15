@@ -22,6 +22,7 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncOutLoading, setSyncOutLoading] = useState(false);
   const [refreshingMatches, setRefreshingMatches] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'assignments' | 'history' | 'courts'>('assignments');
   const [newCourtName, setNewCourtName] = useState('');
 
@@ -144,6 +145,25 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
     }
   };
 
+  const toggleStatus = async () => {
+    if (!tournament) return;
+    const newStatus = tournament.status === 'active' ? 'pending' : 'active';
+    setStatusLoading(true);
+    try {
+      const { error } = await supabase
+        .from('tournaments')
+        .update({ status: newStatus })
+        .eq('id', id);
+      if (error) throw error;
+      setTournament({ ...tournament, status: newStatus });
+      toast.success(`Tournament marked as ${newStatus}`);
+    } catch (err: any) {
+      toast.error(`Failed to update status: ${err.message}`);
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
   const handleAssignRef = async (matchId: string, refId: string) => {
     const refValue = refId || null;
     const { error } = await (supabase as any)
@@ -205,11 +225,15 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
             </h1>
           </div>
           <div className="flex items-center gap-4">
-            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-              tournament?.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'
-            }`}>
-              {tournament?.status}
-            </span>
+            <button 
+              onClick={toggleStatus}
+              disabled={statusLoading}
+              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95 disabled:opacity-50 ${
+                tournament?.status === 'active' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-slate-500/10 text-slate-500 border border-slate-500/20'
+              }`}
+            >
+              {statusLoading ? <RefreshCw size={10} className="animate-spin" /> : tournament?.status}
+            </button>
             <span className="text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
               {new Date(tournament?.held_at || '').toLocaleDateString()}
             </span>

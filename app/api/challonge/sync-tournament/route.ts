@@ -43,9 +43,11 @@ export async function POST(req: Request) {
     }
 
     const challongeData = result.tournament;
+    console.log(`[Sync] Syncing tournament: ${challongeData.name} (${challongeId})`);
 
     // 3. Sync Participants
     const participants = challongeData.participants.map((p: any) => p.participant);
+    console.log(`[Sync] Found ${participants.length} participants in Challonge`);
     
     for (const p of participants) {
       const name = p.display_name || p.name;
@@ -102,6 +104,7 @@ export async function POST(req: Request) {
 
     // 4. Sync Matches
     const matches = challongeData.matches.map((m: any) => m.match);
+    console.log(`[Sync] Found ${matches.length} matches in Challonge`);
     
     // Get all entrants for this tournament to map challonge participant IDs to our player IDs
     // REFRESH ENTRANTS after participant sync to ensure we have the latest startgg_entrant_id mappings
@@ -110,11 +113,20 @@ export async function POST(req: Request) {
       .select('player_id, startgg_entrant_id')
       .eq('tournament_id', tournamentId);
 
-    const entrantMap = new Map(entrants?.map(e => [e.startgg_entrant_id, e.player_id]));
+    const entrantMap = new Map(
+      (entrants || [])
+        .filter(e => e.startgg_entrant_id)
+        .map(e => [e.startgg_entrant_id!.toString(), e.player_id])
+    );
+    console.log(`[Sync] Entrant map size: ${entrantMap.size}`);
 
+    let syncedCount = 0;
     for (const m of matches) {
       // Sync open, pending, and complete matches
-      if (m.state !== 'open' && m.state !== 'pending' && m.state !== 'complete') continue;
+      if (m.state !== 'open' && m.state !== 'pending' && m.state !== 'complete') {
+        console.log(`[Sync] Skipping match ${m.id} with state: ${m.state}`);
+        continue;
+      }
 
       const player1_id = m.player1_id ? entrantMap.get(m.player1_id.toString()) : null;
       const player2_id = m.player2_id ? entrantMap.get(m.player2_id.toString()) : null;
@@ -146,6 +158,7 @@ export async function POST(req: Request) {
           .select('id')
           .single();
         match = newMatch;
+        console.log(`[Sync] Created new match: ${match.id} (Challonge: ${m.id})`);
       } else if (match.status !== 'submitted' && status === 'submitted') {
         // Update to submitted if it was pending
         await supabase
@@ -183,8 +196,15 @@ export async function POST(req: Request) {
         }
 
         if (playersToUpsert.length > 0) {
-          // Use upsert with onConflict if we had a unique constraint, 
-          // but for now let's just delete and re-insert or update individually
+          // 1. Remove any match_players that are no longer in this match
+          const currentPlayerIds = playersToUpsert.map(p => p.player_id);
+          const playersToRemove = existingPlayers?.filter(ep => !currentPlayerIds.includes(ep.player_id)) || [];
+          
+          if (playersToRemove.length > 0) {
+            await supabase.from('match_players').delete().in('id', playersToRemove.map(p => p.id));
+          }
+
+          // 2. Upsert current players
           for (const p of playersToUpsert) {
             const existing = existingPlayers?.find(ep => ep.player_id === p.player_id);
             if (existing) {
@@ -193,11 +213,18 @@ export async function POST(req: Request) {
               await supabase.from('match_players').insert(p);
             }
           }
+        } else {
+          // If both players are TBD, clear existing match_players
+          if (existingPlayers && existingPlayers.length > 0) {
+            await supabase.from('match_players').delete().eq('match_id', match.id);
+          }
         }
       }
+      syncedCount++;
     }
 
-    return NextResponse.json({ success: true, message: 'Synced successfully from Challonge' });
+    console.log(`[Sync] Successfully synced ${syncedCount} matches`);
+    return NextResponse.json({ success: true, message: `Synced ${syncedCount} matches successfully from Challonge` });
 
   } catch (error: any) {
     console.error('Challonge Sync Error:', error);

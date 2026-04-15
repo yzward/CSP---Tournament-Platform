@@ -15,6 +15,7 @@ export default function RefereeDashboard() {
   const [selectedTournament, setSelectedTournament] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
   const supabase = getSupabase();
@@ -172,6 +173,32 @@ export default function RefereeDashboard() {
     }
   };
 
+  const handleSyncAll = async () => {
+    if (activeTournamentIds.length === 0) return;
+    setSyncing(true);
+    try {
+      let successCount = 0;
+      for (const tId of activeTournamentIds) {
+        const res = await fetch('/api/challonge/sync-tournament', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tournamentId: tId })
+        });
+        if (res.ok) successCount++;
+      }
+      if (successCount > 0) {
+        toast.success(`Synced ${successCount} tournaments from Challonge`);
+        if (currentPlayerId) await fetchData(currentPlayerId);
+      } else {
+        toast.error('Failed to sync from Challonge');
+      }
+    } catch (err) {
+      toast.error('Sync failed');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -210,18 +237,26 @@ export default function RefereeDashboard() {
           </p>
         </div>
 
-        {/* Tournament filter */}
-        {activeTournamentIds.length > 1 && (
+        {activeTournamentIds.length > 0 && (
           <div className="flex items-center gap-2">
+            <button 
+              onClick={handleSyncAll}
+              disabled={syncing}
+              className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all active:scale-95 disabled:opacity-50"
+              title="Sync from Challonge"
+            >
+              <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Syncing...' : 'Sync Challonge'}
+            </button>
             <button 
               onClick={handleRefresh}
               disabled={refreshing}
-              className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-95 disabled:opacity-50 mr-2"
-              title="Refresh Matches"
+              className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-95 disabled:opacity-50"
+              title="Refresh Local"
             >
               <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
             </button>
-            <Filter size={14} className="text-muted-foreground" />
+            <Filter size={14} className="text-muted-foreground ml-2" />
             <select
               value={selectedTournament}
               onChange={e => setSelectedTournament(e.target.value)}
