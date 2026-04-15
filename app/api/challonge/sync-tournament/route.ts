@@ -196,6 +196,8 @@ export async function POST(req: Request) {
       (entrants || []).map(e => [e.startgg_entrant_id!.toString(), e.player_id])
     );
     console.log(`[Sync] Entrant map: ${entrantMap.size} entries`);
+    errors.push(`DEBUG: entrantMap has ${entrantMap.size} entries. Keys: ${Array.from(entrantMap.keys()).slice(0, 5).join(', ')}`);
+    errors.push(`DEBUG: ${matches.length} total matches from Challonge. First 3 player IDs: ${matches.slice(0, 3).map(m => `[${m.id}] p1=${m.player1_id} p2=${m.player2_id} state=${m.state}`).join(' | ')}`);
 
     // ── 5. Sync matches ─────────────────────────────────────────────────────
     let syncedCount = 0;
