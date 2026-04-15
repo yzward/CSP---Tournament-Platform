@@ -17,10 +17,21 @@ export default function ContentManagementPage() {
 
   const fetchContent = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from('site_content').select('*').order('id');
-    if (error) {
-      toast.error('Failed to fetch content');
-    } else {
+    try {
+      const { data, error } = await supabase.from('site_content').select('*').order('id');
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        // If the table doesn't exist, we'll get an error. 
+        // In this environment, we should inform the user if it's a schema issue.
+        if (error.code === '42P01') {
+          toast.error('Database table "site_content" does not exist. Please run the migration.');
+        } else {
+          toast.error(`Failed to fetch content: ${error.message}`);
+        }
+        return;
+      }
+
       setContent(data || []);
       
       // Ensure common keys exist
@@ -28,16 +39,24 @@ export default function ContentManagementPage() {
         { id: 'rankings.podium.champion_label', content: 'World Champion' }
       ];
       
+      let needsRefresh = false;
       for (const key of commonKeys) {
         if (!data?.find(item => item.id === key.id)) {
-          await supabase.from('site_content').insert(key);
-          // Re-fetch after insert
-          const { data: newData } = await supabase.from('site_content').select('*').order('id');
-          if (newData) setContent(newData);
+          const { error: insertError } = await supabase.from('site_content').insert(key);
+          if (!insertError) needsRefresh = true;
         }
       }
+
+      if (needsRefresh) {
+        const { data: newData } = await supabase.from('site_content').select('*').order('id');
+        if (newData) setContent(newData);
+      }
+    } catch (err: any) {
+      console.error('Unexpected error:', err);
+      toast.error('An unexpected error occurred while fetching content');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleUpdate = async (id: string, newContent: string) => {

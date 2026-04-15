@@ -32,15 +32,18 @@ export default function OperationsDashboard() {
     // Fetch players manually to avoid PostgREST nested join issues
     const playerIds = new Set<string>();
     (raw || []).forEach((m: any) => {
-      (m.match_players || []).forEach((mp: any) => playerIds.add(mp.player_id));
+      (m.match_players || []).forEach((mp: any) => {
+        if (mp.player_id) playerIds.add(mp.player_id);
+      });
     });
 
     let playersMap: Record<string, any> = {};
-    if (playerIds.size > 0) {
+    const validPlayerIds = Array.from(playerIds).filter(Boolean);
+    if (validPlayerIds.length > 0) {
       const { data: playersData } = await supabase
         .from('players')
         .select('id, display_name, avatar_url')
-        .in('id', Array.from(playerIds));
+        .in('id', validPlayerIds);
       
       playersData?.forEach(p => {
         playersMap[p.id] = p;

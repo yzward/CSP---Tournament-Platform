@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { Tournament, Match, Player } from '@/types';
-import { Trophy, Calendar, Layout, Users, Zap, ChevronLeft, ExternalLink, MapPin, UserPlus, CheckCircle, RefreshCw, Shield } from 'lucide-react';
+import { Trophy, Calendar, Layout, Users, Zap, ChevronLeft, ExternalLink, MapPin, UserPlus, CheckCircle, RefreshCw, Shield, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [challongeStatus, setChallongeStatus] = useState<{ status: string; started_at: string | null } | null>(null);
 
   const supabase = getSupabase();
 
@@ -26,64 +27,73 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
     const fetchData = async () => {
       try {
         const [{ data: authData }, { data: tData }] = await Promise.all([
-        supabase.auth.getUser(),
-        (supabase as any).from('tournaments').select('*').eq('id', id).single(),
-      ]);
-      const user = authData?.user;
-
-      setCurrentUser(user);
-
-      if (tData) {
-        setTournament(tData);
-
-        // Fetch matches and entrants separately
-        const [matchRes, entrantsRes] = await Promise.all([
-          (supabase as any)
-            .from('matches')
-            .select('*, match_players(*)')
-            .eq('tournament_id', id)
-            .eq('status', 'submitted')
-            .order('created_at', { ascending: false }),
-          (supabase as any)
-            .from('tournament_entrants')
-            .select('*, players(*)')
-            .eq('tournament_id', id)
-            .order('placement', { ascending: true, nullsFirst: false }),
+          supabase.auth.getUser(),
+          (supabase as any).from('tournaments').select('*').eq('id', id).single(),
         ]);
+        const user = authData?.user;
 
-        if (matchRes.data) {
-          const rawMatches = matchRes.data;
-          
-          // Collect all player IDs from matches
-          const playerIds = new Set<string>();
-          rawMatches.forEach((m: any) => {
-            (m.match_players || []).forEach((mp: any) => playerIds.add(mp.player_id));
-          });
+        setCurrentUser(user);
 
-          // Fetch player details
-          let pMap: Record<string, Player> = {};
-          if (playerIds.size > 0) {
-            const { data: playersData } = await supabase
-              .from('players')
-              .select('*')
-              .in('id', Array.from(playerIds));
+        if (tData) {
+          setTournament(tData);
+
+          // Fetch Challonge status
+          fetch(`/api/tournaments/${id}/challonge-status`)
+            .then(res => res.json())
+            .then(data => setChallongeStatus(data))
+            .catch(err => console.error('Error fetching challonge status:', err));
+
+          // Fetch matches and entrants separately
+          const [matchRes, entrantsRes] = await Promise.all([
+            (supabase as any)
+              .from('matches')
+              .select('*, match_players(*)')
+              .eq('tournament_id', id)
+              .eq('status', 'submitted')
+              .order('created_at', { ascending: false }),
+            (supabase as any)
+              .from('tournament_entrants')
+              .select('*, players(*)')
+              .eq('tournament_id', id)
+              .order('placement', { ascending: true, nullsFirst: false }),
+          ]);
+
+          if (matchRes.data) {
+            const rawMatches = matchRes.data;
             
-            playersData?.forEach(p => {
-              pMap[p.id] = p as any;
+            // Collect all player IDs from matches
+            const playerIds = new Set<string>();
+            rawMatches.forEach((m: any) => {
+              (m.match_players || []).forEach((mp: any) => {
+                if (mp.player_id) playerIds.add(mp.player_id);
+              });
             });
-          }
-          setPlayers(pMap);
 
-          // Enrich matches with player data
-          const enrichedMatches = rawMatches.map((m: any) => ({
-            ...m,
-            match_players: (m.match_players || []).map((mp: any) => ({
-              ...mp,
-              players: pMap[mp.player_id] || null
-            }))
-          }));
-          setMatches(enrichedMatches);
-        }
+            // Fetch player details
+            let pMap: Record<string, Player> = {};
+            const validPlayerIds = Array.from(playerIds).filter(Boolean);
+            if (validPlayerIds.length > 0) {
+              const { data: playersData } = await supabase
+                .from('players')
+                .select('*')
+                .in('id', validPlayerIds);
+              
+              playersData?.forEach(p => {
+                pMap[p.id] = p as any;
+              });
+            }
+            setPlayers(pMap);
+
+            // Enrich matches with player data
+            const enrichedMatches = rawMatches.map((m: any) => ({
+              ...m,
+              match_players: (m.match_players || []).map((mp: any) => ({
+                ...mp,
+                players: pMap[mp.player_id] || null
+              }))
+            }));
+            setMatches(enrichedMatches);
+          }
 
         if (entrantsRes.data) {
           setStandings(entrantsRes.data);
@@ -173,42 +183,48 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
                         <CheckCircle size={14} /> Registered
                       </div>
                     ) : (
-                      <button
-                        onClick={async () => {
-                          setIsRegistering(true);
-                          try {
-                            const { data, error } = await supabase
-                              .from('tournament_entrants')
-                              .insert({
-                                tournament_id: id,
-                                player_id: currentUser.playerId,
-                                status: 'registered'
-                              })
-                              .select();
-                            
-                            if (error) throw error;
-                            
-                            setIsRegistered(true);
-                            toast.success('Successfully registered for tournament!');
-                            // Refresh standings
-                            const { data: entrantsRes } = await supabase
-                              .from('tournament_entrants')
-                              .select('*, players(*)')
-                              .eq('tournament_id', id)
-                              .order('placement', { ascending: true, nullsFirst: false });
-                            if (entrantsRes) setStandings(entrantsRes);
-                          } catch (err: any) {
-                            toast.error(`Registration failed: ${err.message}`);
-                          } finally {
-                            setIsRegistering(false);
-                          }
-                        }}
-                        disabled={isRegistering}
-                        className="flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
-                      >
-                        {isRegistering ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                        Register Now
-                      </button>
+                      challongeStatus?.status && challongeStatus.status !== 'pending' ? (
+                        <div className="flex items-center gap-2 px-6 py-3 bg-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/5">
+                          <XCircle size={14} /> Registration Closed
+                        </div>
+                      ) : (
+                        <button
+                          onClick={async () => {
+                            setIsRegistering(true);
+                            try {
+                              const { data, error } = await supabase
+                                .from('tournament_entrants')
+                                .insert({
+                                  tournament_id: id,
+                                  player_id: currentUser.playerId,
+                                  status: 'registered'
+                                })
+                                .select();
+                              
+                              if (error) throw error;
+                              
+                              setIsRegistered(true);
+                              toast.success('Successfully registered for tournament!');
+                              // Refresh standings
+                              const { data: entrantsRes } = await supabase
+                                .from('tournament_entrants')
+                                .select('*, players(*)')
+                                .eq('tournament_id', id)
+                                .order('placement', { ascending: true, nullsFirst: false });
+                              if (entrantsRes) setStandings(entrantsRes);
+                            } catch (err: any) {
+                              toast.error(`Registration failed: ${err.message}`);
+                            } finally {
+                              setIsRegistering(false);
+                            }
+                          }}
+                          disabled={isRegistering}
+                          className="flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary/90 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {isRegistering ? <RefreshCw size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                          Register Now
+                        </button>
+                      )
                     )
                   ) : (
                     <Link
@@ -421,24 +437,28 @@ export default function TournamentDetail({ params }: { params: Promise<{ id: str
           )}
 
           {activeTab === 'bracket' && (
-            <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden min-h-[600px] flex flex-col">
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                <Layout className="text-primary opacity-50 mb-6" size={64} />
-                <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">Bracket Hosted on Challonge</h3>
-                <p className="text-muted-foreground text-sm max-w-md mb-8">
-                  This tournament's bracket and matches are managed externally on Challonge.
-                </p>
-                {tournament.evaroon_id && (
-                  <a
-                    href={tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-8 py-4 bg-primary hover:bg-primary/90 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
-                  >
-                    <ExternalLink size={16} /> View Bracket on Challonge
-                  </a>
-                )}
-              </div>
+            <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden min-h-[800px] flex flex-col">
+              {tournament.evaroon_id ? (
+                <div className="flex-1 w-full h-full min-h-[800px] relative">
+                  <iframe
+                    src={`${tournament.evaroon_id.includes('challonge.com') ? tournament.evaroon_id : `https://challonge.com/${tournament.evaroon_id}`}/module?theme=1&multiplier=0.8&match_width_multiplier=0.9&show_final_results=1&show_standings=1`}
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    scrolling="auto"
+                    allowTransparency={true}
+                    className="absolute inset-0 w-full h-full"
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+                  <Layout className="text-primary opacity-50 mb-6" size={64} />
+                  <h3 className="text-2xl font-black uppercase tracking-tight italic mb-4">No Bracket Available</h3>
+                  <p className="text-muted-foreground text-sm max-w-md mb-8">
+                    This tournament does not have a linked Challonge bracket.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </motion.div>
