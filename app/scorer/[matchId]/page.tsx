@@ -119,8 +119,9 @@ export default function LiveScorer({ params }: { params: Promise<{ matchId: stri
       const mps: any[] = m.match_players || [];
       setP1MpId(mps[0]?.id || '');
       setP2MpId(mps[1]?.id || '');
-      setPlayer1(mps[0]?.players || null);
-      setPlayer2(mps[1]?.players || null);
+      // Fall back to placeholder so scoring still works even without linked players
+      setPlayer1(mps[0]?.players || (mps[0]?.player_id ? { id: mps[0].player_id, display_name: 'Player 1', username: null, avatar_url: null } : null));
+      setPlayer2(mps[1]?.players || (mps[1]?.player_id ? { id: mps[1].player_id, display_name: 'Player 2', username: null, avatar_url: null } : null));
 
       const p1Id = mps[0]?.player_id;
       const p2Id = mps[1]?.player_id;
