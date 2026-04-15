@@ -9,10 +9,13 @@ import { motion } from 'motion/react';
 
 export default function PlayersAdmin() {
   const [players, setPlayers] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const pageSize = 20;
@@ -20,9 +23,14 @@ export default function PlayersAdmin() {
 
   const fetchPlayers = async () => {
     setLoading(true);
+    
+    // Fetch teams first for the dropdowns
+    const { data: teamsData } = await supabase.from('teams').select('id, name').order('name');
+    setTeams(teamsData || []);
+
     let query = supabase
       .from('players')
-      .select('*', { count: 'exact' })
+      .select('*, team:teams(id, name)', { count: 'exact' })
       .order('ranking_points', { ascending: false });
 
     if (searchQuery) {
@@ -59,6 +67,7 @@ export default function PlayersAdmin() {
       club: player.club || '',
       region: player.region || '',
       ranking_points: player.ranking_points,
+      team_id: player.team_id || '',
     });
   };
 
@@ -83,6 +92,63 @@ export default function PlayersAdmin() {
     }
   };
 
+  const toggleSelectAll = () => {
+    if (selectedIds.length === players.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(players.map(p => p.id));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(i => i !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} players? This cannot be undone.`)) return;
+
+    setIsBulkDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('players')
+        .delete()
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`${selectedIds.length} players deleted`);
+      setSelectedIds([]);
+      fetchPlayers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete players');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  const handleBulkUpdate = async (field: string, value: any) => {
+    if (!selectedIds.length) return;
+    
+    try {
+      const { error } = await supabase
+        .from('players')
+        .update({ [field]: value })
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      toast.success(`Updated ${selectedIds.length} players`);
+      fetchPlayers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update players');
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <Link 
@@ -93,14 +159,56 @@ export default function PlayersAdmin() {
         Back to Admin
       </Link>
 
-      <div className="flex items-center gap-4 mb-8">
-        <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
-          <Users className="text-primary" size={24} />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center border border-primary/30">
+            <Users className="text-primary" size={24} />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black uppercase tracking-tighter">Player Management</h1>
+            <p className="text-sm text-muted-foreground">Manage and edit player profiles</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter">Player Management</h1>
-          <p className="text-sm text-muted-foreground">Manage and edit player profiles</p>
-        </div>
+
+        {selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-2xl p-2"
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary px-3">
+              {selectedIds.length} Selected
+            </span>
+            <div className="h-4 w-px bg-primary/20 mx-2" />
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
+            >
+              Delete
+            </button>
+            <select
+              onChange={(e) => {
+                const [field, value] = e.target.value.split(':');
+                if (field && value) handleBulkUpdate(field, value);
+                e.target.value = '';
+              }}
+              className="bg-background border border-border rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest focus:outline-none focus:border-primary"
+            >
+              <option value="">Bulk Edit...</option>
+              <option value="region:North America">Set Region: NA</option>
+              <option value="region:Europe">Set Region: EU</option>
+              <option value="region:Asia">Set Region: Asia</option>
+              <option value="club:None">Clear Club</option>
+              <optgroup label="Assign Team">
+                <option value="team_id:null">No Team</option>
+                {teams.map(t => (
+                  <option key={t.id} value={`team_id:${t.id}`}>Team: {t.name}</option>
+                ))}
+              </optgroup>
+            </select>
+          </motion.div>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-2xl">
@@ -121,9 +229,18 @@ export default function PlayersAdmin() {
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className="border-b border-border bg-black/40">
+                <th className="p-4 w-10">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.length === players.length && players.length > 0}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary"
+                  />
+                </th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Display Name</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Username / Email</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Club / Region</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Team / Club</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Region</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ranking Pts</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Actions</th>
               </tr>
@@ -135,7 +252,15 @@ export default function PlayersAdmin() {
                 <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No players found.</td></tr>
               ) : (
                 players.map((player) => (
-                  <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={player.id} className="border-b border-border/50 hover:bg-white/5 transition-colors">
+                  <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={player.id} className={`border-b border-border/50 hover:bg-white/5 transition-colors ${selectedIds.includes(player.id) ? 'bg-primary/5' : ''}`}>
+                    <td className="p-4">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedIds.includes(player.id)}
+                        onChange={() => toggleSelect(player.id)}
+                        className="w-4 h-4 rounded border-border bg-background text-primary focus:ring-primary"
+                      />
+                    </td>
                     <td className="p-4">
                       {editingId === player.id ? (
                         <input type="text" value={editForm.display_name} onChange={(e) => setEditForm({ ...editForm, display_name: e.target.value })} className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-bold focus:outline-none focus:border-primary" />
@@ -158,12 +283,29 @@ export default function PlayersAdmin() {
                     </td>
                     <td className="p-4">
                       {editingId === player.id ? (
-                        <div className="flex gap-2">
-                          <input type="text" placeholder="Club" value={editForm.club} onChange={(e) => setEditForm({ ...editForm, club: e.target.value })} className="w-1/2 bg-background border border-border rounded px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary" />
-                          <input type="text" placeholder="Region" value={editForm.region} onChange={(e) => setEditForm({ ...editForm, region: e.target.value })} className="w-1/2 bg-background border border-border rounded px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary" />
+                        <div className="space-y-2">
+                          <select 
+                            value={editForm.team_id} 
+                            onChange={(e) => setEditForm({ ...editForm, team_id: e.target.value })} 
+                            className="w-full bg-background border border-border rounded px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary"
+                          >
+                            <option value="">No Team</option>
+                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                          <input type="text" placeholder="Club" value={editForm.club} onChange={(e) => setEditForm({ ...editForm, club: e.target.value })} className="w-full bg-background border border-border rounded px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary" />
                         </div>
                       ) : (
-                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{player.club || '-'} / {player.region || '-'}</div>
+                        <div>
+                          <div className="text-xs font-black uppercase tracking-tight text-primary">{player.team?.name || 'Independent'}</div>
+                          <div className="text-[10px] text-muted-foreground/60">{player.club || '-'}</div>
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      {editingId === player.id ? (
+                        <input type="text" placeholder="Region" value={editForm.region} onChange={(e) => setEditForm({ ...editForm, region: e.target.value })} className="w-full bg-background border border-border rounded px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary" />
+                      ) : (
+                        <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{player.region || '-'}</div>
                       )}
                     </td>
                     <td className="p-4">

@@ -56,7 +56,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, username, display_name, email, club, region, ranking_points } = body;
+    const { id, username, display_name, email, club, region, ranking_points, team_id } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Player ID is required' }, { status: 400 });
@@ -70,7 +70,8 @@ export async function PUT(request: Request) {
         email,
         club,
         region,
-        ranking_points
+        ranking_points,
+        team_id: team_id || null
       })
       .eq('id', id);
 

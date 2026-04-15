@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { Match, Player } from '@/types';
-import { LayoutDashboard, Play, CheckCircle, Clock, User, Filter, Shield } from 'lucide-react';
+import { LayoutDashboard, Play, CheckCircle, Clock, User, Filter, Shield, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -14,6 +14,7 @@ export default function RefereeDashboard() {
   const [activeTournamentIds, setActiveTournamentIds] = useState<string[]>([]);
   const [selectedTournament, setSelectedTournament] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
   const supabase = getSupabase();
@@ -152,6 +153,19 @@ export default function RefereeDashboard() {
     else toast.success('Match released.');
   };
 
+  const handleRefresh = async () => {
+    if (!currentPlayerId) return;
+    setRefreshing(true);
+    try {
+      await fetchData(currentPlayerId);
+      toast.success('Matches refreshed');
+    } catch (err) {
+      toast.error('Failed to refresh');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -193,6 +207,14 @@ export default function RefereeDashboard() {
         {/* Tournament filter */}
         {activeTournamentIds.length > 1 && (
           <div className="flex items-center gap-2">
+            <button 
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-95 disabled:opacity-50 mr-2"
+              title="Refresh Matches"
+            >
+              <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+            </button>
             <Filter size={14} className="text-muted-foreground" />
             <select
               value={selectedTournament}

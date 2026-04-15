@@ -19,6 +19,7 @@ export default function OperationsDashboard() {
   const [challongeStatuses, setChallongeStatuses] = useState<Record<string, { status: string; started_at: string | null }>>({});
   const [syncInLoading, setSyncInLoading] = useState<string | null>(null);
   const [syncOutLoading, setSyncOutLoading] = useState<string | null>(null);
+  const [refreshingMatches, setRefreshingMatches] = useState(false);
   const supabase = getSupabase();
 
   const fetchMatches = async () => {
@@ -190,6 +191,19 @@ export default function OperationsDashboard() {
       }
 
       setMatches(await fetchMatches());
+    }
+  };
+
+  const handleRefreshMatches = async () => {
+    setRefreshingMatches(true);
+    try {
+      const enrichedMatches = await fetchMatches();
+      setMatches(enrichedMatches);
+      toast.success('Matches refreshed');
+    } catch (err) {
+      toast.error('Failed to refresh matches');
+    } finally {
+      setRefreshingMatches(false);
     }
   };
 
@@ -503,13 +517,23 @@ export default function OperationsDashboard() {
 
         {/* Right Column: Match Assignments */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Trophy className="text-primary" size={20} />
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                <Trophy className="text-primary" size={20} />
+              </div>
+              <h2 className="text-2xl font-black uppercase tracking-tight italic">
+                {activeMainTab === 'assignments' ? 'Live Match Assignments' : 'Match History'}
+              </h2>
             </div>
-            <h2 className="text-2xl font-black uppercase tracking-tight italic">
-              {activeMainTab === 'assignments' ? 'Live Match Assignments' : 'Match History'}
-            </h2>
+            <button 
+              onClick={handleRefreshMatches}
+              disabled={refreshingMatches}
+              className="p-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-muted-foreground hover:text-primary transition-all active:scale-95 disabled:opacity-50"
+              title="Refresh Matches"
+            >
+              <RefreshCw size={18} className={refreshingMatches ? 'animate-spin' : ''} />
+            </button>
           </div>
 
           <div className="bg-card border border-border rounded-[2.5rem] overflow-hidden shadow-2xl">
