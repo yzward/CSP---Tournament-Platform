@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name                 TEXT NOT NULL,
   stage_type           TEXT DEFAULT 'single' CHECK (stage_type IN ('single', 'two_stage')),
+  format               TEXT,                                  -- legacy alias kept for PostgREST compatibility
   stage1_format        TEXT NOT NULL DEFAULT 'single_elim',
   stage2_format        TEXT,
   stage1_fixed_decks   BOOLEAN DEFAULT FALSE,

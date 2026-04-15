@@ -98,8 +98,11 @@ export default function ImportTournament() {
           name: tournament.name, 
           held_at: new Date(tournament.started_at || tournament.created_at).toISOString().split('T')[0], 
           stage1_format: tournament.tournament_type === 'single elimination' ? 'single_elim' :
-                         tournament.tournament_type === 'double elimination' ? 'double_elim' : 
+                         tournament.tournament_type === 'double elimination' ? 'double_elim' :
                          tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
+          format: tournament.tournament_type === 'single elimination' ? 'single_elim' :
+                  tournament.tournament_type === 'double elimination' ? 'double_elim' :
+                  tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
           status: 'active',
           challonge_id: tournament.url,
           location: 'Offline',
