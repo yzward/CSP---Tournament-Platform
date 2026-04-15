@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import { createClient as createBrowserClient } from '@/utils/supabase/client';
 
 let supabaseInstance: any = null;
-let supabaseAdminInstance: any = null;
 
 export const getSupabase = () => {
   if (typeof window === 'undefined') {
@@ -18,16 +17,18 @@ export const getSupabase = () => {
 };
 
 export const getSupabaseAdmin = () => {
-  if (supabaseAdminInstance) return supabaseAdminInstance;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder';
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables');
+  }
 
-  supabaseAdminInstance = createClient(supabaseUrl, supabaseServiceKey, {
+  // Do NOT cache — always create fresh so env vars are read at call time (serverless safe)
+  return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
     }
   });
-  return supabaseAdminInstance;
 };

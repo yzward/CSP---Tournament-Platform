@@ -33,7 +33,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing tournament ID' }, { status: 400 });
     }
 
-    const supabase = getSupabaseAdmin();
+    let supabase: ReturnType<typeof getSupabaseAdmin>;
+    try {
+      supabase = getSupabaseAdmin();
+    } catch (envErr: any) {
+      console.error('[Sync] Admin client init failed:', envErr.message);
+      return NextResponse.json({ error: `Server configuration error: ${envErr.message}` }, { status: 500 });
+    }
 
     // ── 1. Load local tournament ────────────────────────────────────────────
     const { data: tournament, error: tError } = await supabase
@@ -43,7 +49,11 @@ export async function POST(req: Request) {
       .single();
 
     if (tError || !tournament) {
-      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+      console.error('[Sync] Tournament lookup failed:', tError?.message, 'ID:', tournamentId);
+      return NextResponse.json(
+        { error: `Tournament not found (id: ${tournamentId})${tError ? ` — ${tError.message}` : ''}` },
+        { status: 404 }
+      );
     }
 
     if (!tournament.challonge_id) {
