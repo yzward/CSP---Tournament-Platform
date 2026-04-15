@@ -91,7 +91,7 @@ export interface Tournament {
   discord_webhook_url?: string;
   organiser_id?: string;
   top_cut_size?: number;
-  /** Legacy column name, now stores start.gg slug or url */
+  /** Legacy column name, now stores Challonge URL/ID or start.gg slug */
   evaroon_id?: string;
   bracket_data?: any;
   created_at: string;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import { Tournament, Match, Player } from '@/types';
-import { Shield, RefreshCw, Users, Trophy, Plus, Settings, User, CheckCircle, XCircle, ExternalLink, MapPin, ListOrdered, Trash2 } from 'lucide-react';
+import { Shield, RefreshCw, Users, Trophy, Plus, Settings, User, CheckCircle, XCircle, ExternalLink, MapPin, ListOrdered, Trash2, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ export default function OperationsDashboard() {
   const [loading, setLoading] = useState(true);
   const [newCourtName, setNewCourtName] = useState('');
   const [selectedTournament, setSelectedTournament] = useState('');
+  const [challongeStatuses, setChallongeStatuses] = useState<Record<string, { status: string; started_at: string | null }>>({});
   const supabase = getSupabase();
 
   const fetchMatches = async () => {
@@ -68,12 +69,29 @@ export default function OperationsDashboard() {
         fetchMatches(),
       ]);
 
-      setTournaments(tournamentsRes.data || []);
+      const fetchedTournaments = tournamentsRes.data || [];
+      setTournaments(fetchedTournaments);
       setMatches(enrichedMatches);
       setReferees(allPlayersRes.data || []);
       setCourts(courtsRes.data || []);
-      if (tournamentsRes.data?.[0]) setSelectedTournament((tournamentsRes.data[0] as any).id);
+      if (fetchedTournaments[0]) setSelectedTournament((fetchedTournaments[0] as any).id);
       setLoading(false);
+
+      // Fetch Challonge statuses for the first few tournaments
+      if (fetchedTournaments.length > 0) {
+        const statuses: Record<string, any> = {};
+        await Promise.all(fetchedTournaments.slice(0, 3).map(async (t) => {
+          try {
+            const res = await fetch(`/api/tournaments/${t.id}/challonge-status`);
+            if (res.ok) {
+              statuses[t.id] = await res.json();
+            }
+          } catch (err) {
+            console.error(`Failed to fetch status for ${t.id}`, err);
+          }
+        }));
+        setChallongeStatuses(statuses);
+      }
     };
 
     fetchData();
@@ -316,7 +334,7 @@ export default function OperationsDashboard() {
                   </div>
 
                   {t.status === 'active' && (
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         disabled={loading}
                         onClick={async () => {
@@ -340,8 +358,34 @@ export default function OperationsDashboard() {
                         }}
                         className="py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                       >
-                        <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+                        <ArrowDownCircle size={10} className={loading ? 'animate-spin' : ''} />
                         {loading ? 'Syncing...' : 'Sync In'}
+                      </button>
+
+                      <button
+                        disabled={loading || (challongeStatuses[t.id]?.status !== 'pending' && !!challongeStatuses[t.id]?.started_at)}
+                        onClick={async () => {
+                          setLoading(true);
+                          try {
+                            const res = await fetch('/api/challonge/sync-out', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ tournamentId: t.id })
+                            });
+                            const result = await res.json();
+                            if (!res.ok) throw new Error(result.error);
+                            toast.success(result.message);
+                          } catch (err: any) {
+                            toast.error(err.message || 'Failed to sync out');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 text-[8px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        title={challongeStatuses[t.id]?.status !== 'pending' && !!challongeStatuses[t.id]?.started_at ? 'Tournament has started, cannot sync out new entrants' : 'Sync local entrants to Challonge'}
+                      >
+                        <ArrowUpCircle size={10} className={loading ? 'animate-spin' : ''} />
+                        {loading ? 'Syncing...' : 'Sync Out'}
                       </button>
                     </div>
                   )}
