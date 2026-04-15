@@ -393,8 +393,15 @@ export default function RankingsPage() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-black uppercase tracking-tight italic group-hover/link:text-primary transition-colors truncate text-xs">
-                              {player.display_name}
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-black uppercase tracking-tight italic group-hover/link:text-primary transition-colors truncate text-xs">
+                                {player.display_name}
+                              </span>
+                              {(player as any).discord_id ? (
+                                <span title="Claimed" className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                              ) : (
+                                <span title="Unclaimed" className="w-1.5 h-1.5 rounded-full border border-muted-foreground/40 shrink-0" />
+                              )}
                             </div>
                             <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest truncate">
                               @{player.username}

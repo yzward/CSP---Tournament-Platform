@@ -31,7 +31,15 @@ export default function TournamentsPage() {
         .order('held_at', { ascending: false });
 
       if (data) {
-        setTournaments(data);
+        // Sort: active first, then pending, then completed — newest first within each group
+        const statusOrder: Record<string, number> = { active: 0, pending: 1, completed: 2 };
+        const sorted = [...data].sort((a, b) => {
+          const ao = statusOrder[a.status] ?? 3;
+          const bo = statusOrder[b.status] ?? 3;
+          if (ao !== bo) return ao - bo;
+          return new Date(b.held_at).getTime() - new Date(a.held_at).getTime();
+        });
+        setTournaments(sorted);
 
         // Fetch entrant counts per tournament
         const counts: Record<string, number> = {};

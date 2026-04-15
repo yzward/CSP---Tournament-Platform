@@ -505,6 +505,18 @@ INSERT INTO roles (name, description, is_custom, permissions) VALUES
   "can_manage_courts":true,"can_approve_registrations":true,
   "can_approve_decks":true,"can_edit_points_scale":false
 }'),
+('Team Captain', 'Can manage their own team roster', false, '{
+  "can_view_rankings":true,"can_view_profiles":true,"can_edit_own_profile":true,
+  "can_grab_matches":false,"can_score_matches":false,"can_submit_matches":false,
+  "can_create_tournaments":false,"can_complete_tournaments":false,
+  "can_manage_refs":false,"can_manage_players":false,"can_manage_roles":false,
+  "can_access_admin_panel":false,"can_view_bracket":true,"can_view_meta":true,
+  "can_manage_own_parts":true,"can_manage_own_decks":true,
+  "can_register_for_tournaments":true,"can_declare_deck":true,
+  "can_manage_courts":false,"can_approve_registrations":false,
+  "can_approve_decks":false,"can_edit_points_scale":false,
+  "can_manage_own_team":true
+}'),
 ('Admin', 'Full system access', false, '{
   "can_view_rankings":true,"can_view_profiles":true,"can_edit_own_profile":true,
   "can_grab_matches":true,"can_score_matches":true,"can_submit_matches":true,

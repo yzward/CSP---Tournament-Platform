@@ -118,6 +118,12 @@ export default function AdminDashboard() {
       href: '/admin/content',
     },
     {
+      title: 'Team Management',
+      description: 'Create teams and manage rosters, including unclaimed players.',
+      icon: Users,
+      href: '/admin/teams',
+    },
+    {
       title: 'Operations',
       description: 'Manage tournaments and matches.',
       icon: Settings,
