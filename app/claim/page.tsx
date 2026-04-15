@@ -94,7 +94,8 @@ export default function ClaimPage() {
           auth_user_id: user.id,
           player_id: player.id,
           status: 'pending',
-          discord_username: discordUsername
+          discord_username: discordUsername,
+          email: user.email
         });
 
       if (error) throw error;

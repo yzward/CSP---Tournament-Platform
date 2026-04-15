@@ -160,16 +160,11 @@ function LandingContent() {
   const [stats, setStats] = useState({ bladers: 0, tournaments: 0, matches: 0 });
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
   const [siteContent, setSiteContent] = useState<Record<string, string>>({});
-  const [isMounted, setIsMounted] = useState(false);
   const supabase = getSupabase();
   const searchParams = useSearchParams();
   const [errorParam, setErrorParam] = useState(searchParams.get('error'));
   const [showError, setShowError] = useState(!!errorParam);
   const discordInviteUrl = process.env.NEXT_PUBLIC_DISCORD_INVITE_URL || 'https://discord.gg/spiritgaming';
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -272,10 +267,6 @@ function LandingContent() {
       window.open(data.url, 'oauth_popup', 'width=600,height=700');
     }
   };
-
-  if (!isMounted) {
-    return <div className="min-h-screen bg-[#0a0a14]" />;
-  }
 
   return (
     <div className="min-h-screen bg-[#0a0a14] text-white overflow-x-hidden">

@@ -57,9 +57,10 @@ export async function GET(request: Request) {
           .single()
 
         if (player) {
-          // Update existing player's avatar and discord token
+          // Update existing player's avatar, email and discord token
           const updateData: any = {
-            discord_access_token: providerToken
+            discord_access_token: providerToken,
+            email: user.email
           };
           
           if (user.user_metadata.avatar_url && player.avatar_url !== user.user_metadata.avatar_url) {

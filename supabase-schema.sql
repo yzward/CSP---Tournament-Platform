@@ -5,6 +5,7 @@ CREATE TABLE players (
   username TEXT UNIQUE NOT NULL,
   display_name TEXT NOT NULL,
   avatar_url TEXT,
+  email TEXT,
   region TEXT,
   club TEXT,
   ranking_points INTEGER DEFAULT 0,
@@ -181,6 +182,7 @@ CREATE TABLE account_claims (
   player_id UUID REFERENCES players(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied')),
   discord_username TEXT NOT NULL,
+  email TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   reviewed_at TIMESTAMP WITH TIME ZONE,
   reviewed_by UUID REFERENCES players(id)

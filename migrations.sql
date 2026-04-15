@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS teams (
 );
 
 ALTER TABLE players ADD COLUMN IF NOT EXISTS team_id UUID REFERENCES teams(id) ON DELETE SET NULL;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS email TEXT;
 
 ALTER TABLE tournament_entrants ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'registered';
 ALTER TABLE tournament_entrants ADD COLUMN IF NOT EXISTS seed INTEGER;
@@ -244,6 +245,7 @@ CREATE TABLE IF NOT EXISTS account_claims (
   player_id UUID REFERENCES players(id) ON DELETE CASCADE,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   discord_username TEXT,
+  email TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

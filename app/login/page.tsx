@@ -12,12 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const supabase = getSupabase();
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -207,10 +202,6 @@ export default function LoginPage() {
       setIsEmailLoading(false);
     }
   };
-
-  if (!isMounted) {
-    return <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 opacity-0" />;
-  }
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">

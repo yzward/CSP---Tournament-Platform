@@ -228,6 +228,7 @@ export interface AccountClaim {
   player_id: string;
   status: 'pending' | 'approved' | 'denied';
   discord_username: string;
+  email?: string;
   created_at: string;
   reviewed_at?: string;
   reviewed_by?: string;

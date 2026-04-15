@@ -55,6 +55,7 @@ export default function PlayersAdmin() {
     setEditForm({
       username: player.username,
       display_name: player.display_name,
+      email: player.email || '',
       club: player.club || '',
       region: player.region || '',
       ranking_points: player.ranking_points,
@@ -121,7 +122,7 @@ export default function PlayersAdmin() {
             <thead>
               <tr className="border-b border-border bg-black/40">
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Display Name</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Username</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Username / Email</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Club / Region</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground">Ranking Pts</th>
                 <th className="p-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Actions</th>
@@ -144,9 +145,15 @@ export default function PlayersAdmin() {
                     </td>
                     <td className="p-4">
                       {editingId === player.id ? (
-                        <input type="text" value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-bold focus:outline-none focus:border-primary" />
+                        <div className="space-y-2">
+                          <input type="text" value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} className="w-full bg-background border border-border rounded px-3 py-2 text-sm font-bold focus:outline-none focus:border-primary" />
+                          <input type="email" placeholder="Email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className="w-full bg-background border border-border rounded px-3 py-2 text-xs font-bold focus:outline-none focus:border-primary" />
+                        </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground">@{player.username}</div>
+                        <div>
+                          <div className="text-sm text-muted-foreground">@{player.username}</div>
+                          <div className="text-[10px] text-muted-foreground/60">{player.email || 'No email'}</div>
+                        </div>
                       )}
                     </td>
                     <td className="p-4">

@@ -184,6 +184,11 @@ export default function AdminDashboard() {
                           <span className="font-black uppercase tracking-tight italic">{claim.discord_username}</span>
                           <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">is claiming</span>
                         </div>
+                        {claim.email && (
+                          <div className="text-[10px] text-muted-foreground/60 font-medium mb-2">
+                            {claim.email}
+                          </div>
+                        )}
                         <div className="flex items-center gap-2">
                           <Link 
                             href={`/players/${claim.player?.username}`}
