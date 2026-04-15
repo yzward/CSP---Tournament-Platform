@@ -97,10 +97,7 @@ export default function ImportTournament() {
         .insert({ 
           name: tournament.name, 
           held_at: new Date(tournament.started_at || tournament.created_at).toISOString().split('T')[0], 
-          format: tournament.tournament_type === 'single elimination' ? 'single_elim' : 
-                  tournament.tournament_type === 'double elimination' ? 'double_elim' : 
-                  tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
-          stage1_format: tournament.tournament_type === 'single elimination' ? 'single_elim' : 
+          stage1_format: tournament.tournament_type === 'single elimination' ? 'single_elim' :
                          tournament.tournament_type === 'double elimination' ? 'double_elim' : 
                          tournament.tournament_type === 'round robin' ? 'round_robin' : 'swiss',
           status: 'active',
