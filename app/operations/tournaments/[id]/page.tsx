@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 
 export default function TournamentDashboard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  console.log('[TournamentDashboard] id:', id);
+  if (!id) return <div>Invalid Tournament ID</div>;
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [referees, setReferees] = useState<Player[]>([]);

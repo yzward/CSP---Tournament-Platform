@@ -23,10 +23,13 @@ export async function POST(req: Request) {
     }
 
     if (!tournament.evaroon_id) {
+      console.error('[Sync] Tournament evaroon_id is missing:', tournament);
       return NextResponse.json({ error: 'Tournament is not linked to Challonge' }, { status: 400 });
     }
 
+    console.log('[Sync] evaroon_id:', tournament.evaroon_id);
     const { id: challongeId } = parseTournamentId(tournament.evaroon_id);
+    console.log('[Sync] challongeId:', challongeId);
 
     // 2. Fetch from Challonge
     const apiKey = process.env.CHALLONGE_API_KEY;
@@ -37,8 +40,9 @@ export async function POST(req: Request) {
     const challongeUrl = `https://api.challonge.com/v1/tournaments/${challongeId}.json?include_participants=1&include_matches=1&api_key=${apiKey}`;
     const response = await fetch(challongeUrl);
     const result = await response.json();
-
+    
     if (!response.ok) {
+      console.error('[Sync] Challonge API error:', result);
       throw new Error(result.error || 'Failed to fetch from Challonge');
     }
 
